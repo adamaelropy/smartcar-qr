@@ -3,6 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 const pool = require("./db");
+const serviceRoutes = require("./routes/serviceRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,12 +11,16 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+
+// Test route
 app.get("/", (req, res) => {
     res.json({
         message: "SmartCar QR Backend is running!"
     });
 });
 
+
+// Database test
 app.get("/api/test-db", async (req, res) => {
     try {
         const [rows] = await pool.query("SELECT 1 AS result");
@@ -36,6 +41,13 @@ app.get("/api/test-db", async (req, res) => {
     }
 });
 
+
+// Services
+app.use("/api/services", serviceRoutes);
+
+
 app.listen(PORT, () => {
-    console.log(`SmartCar QR Backend running on http://localhost:${PORT}`);
+    console.log(
+        `SmartCar QR Backend running on http://localhost:${PORT}`
+    );
 });
