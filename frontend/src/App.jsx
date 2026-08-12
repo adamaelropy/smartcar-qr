@@ -1,122 +1,112 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { BrowserRouter, Routes, Route, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import QR from "./QR";
 
-function App() {
-  const [count, setCount] = useState(0)
-
+function Home() {
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+    <div>
+      <h1>SmartCar QR</h1>
+      <p>Home Page</p>
+    </div>
+  );
 }
 
-export default App
+
+// ==============================
+// Scanned QR Page
+// ==============================
+
+function ScannedQR() {
+  const { token } = useParams();
+
+  const [vehicle, setVehicle] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchVehicle = async () => {
+      try {
+        const response = await fetch(
+          `http://localhost:3000/api/qr/${token}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(
+            data.message || "Failed to retrieve QR information."
+          );
+        }
+
+        setVehicle(data.vehicle);
+      } catch (error) {
+        console.error("Scan QR error:", error);
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVehicle();
+  }, [token]);
+
+  if (loading) {
+    return <h2>Loading...</h2>;
+  }
+
+  if (error) {
+    return (
+      <div>
+        <h1>SmartCar QR</h1>
+        <h2>QR Code Error</h2>
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  if (!vehicle) {
+    return <h2>QR Code not found.</h2>;
+  }
+
+  return (
+    <div>
+      <h1>SmartCar QR</h1>
+
+      <h2>Contact Vehicle Owner</h2>
+
+      <button>Message Owner</button>
+      <button>Call Owner</button>
+
+      <h2>Emergency</h2>
+
+      <button>Message Relative</button>
+      <button>Call Relative</button>
+    </div>
+  );
+}
+
+
+// ==============================
+// Main App
+// ==============================
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+
+        {/* Home */}
+        <Route path="/" element={<Home />} />
+
+        {/* Owner QR page */}
+        <Route path="/qr" element={<QR />} />
+
+        {/* Scanned QR page */}
+        <Route path="/qr/:token" element={<ScannedQR />} />
+
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
