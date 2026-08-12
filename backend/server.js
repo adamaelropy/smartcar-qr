@@ -3,6 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 const pool = require("./db");
+const serviceRoutes = require("./routes/serviceRoutes");
 const authRoutes = require("./routes/auth.routes");
 const registrationRoutes = require("./routes/registration.routes");
 
@@ -12,6 +13,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+
+// Test route
 app.use("/api/auth", authRoutes);
 app.use("/api/registration", registrationRoutes);
 
@@ -21,6 +24,8 @@ app.get("/", (req, res) => {
     });
 });
 
+
+// Database test
 app.get("/api/test-db", async (req, res) => {
     try {
         const [rows] = await pool.query("SELECT 1 AS result");
@@ -41,6 +46,13 @@ app.get("/api/test-db", async (req, res) => {
     }
 });
 
+
+// Services
+app.use("/api/services", serviceRoutes);
+
+
 app.listen(PORT, () => {
-    console.log(`SmartCar QR Backend running on http://localhost:${PORT}`);
+    console.log(
+        `SmartCar QR Backend running on http://localhost:${PORT}`
+    );
 });
