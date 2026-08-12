@@ -25,6 +25,45 @@ function authHeaders(token) {
   };
 }
 
+export const fetchServices = async (params = {}) => {
+  const searchParams = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      searchParams.append(key, value);
+    }
+  });
+
+  const queryString = searchParams.toString();
+  const url = `${API_BASE}/services${queryString ? `?${queryString}` : ''}`;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch services');
+  }
+
+  const data = await response.json();
+  return data.services || [];
+};
+
+export const searchServices = async (query) => {
+  if (!query || !query.trim()) {
+    return [];
+  }
+
+  const response = await fetch(
+    `${API_BASE}/services/search?query=${encodeURIComponent(query)}`
+  );
+
+  if (!response.ok) {
+    throw new Error('Failed to search services');
+  }
+
+  const data = await response.json();
+  return data.services || [];
+};
+
 export async function login(username, password) {
   const response = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
