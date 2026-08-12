@@ -1,26 +1,32 @@
 import { useEffect, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
+import { Navigate } from "react-router-dom";
+import { useAuth } from "./context/AuthContext";
+import { fetchMyVehicleQr } from "./services/api";
+import "./styles/auth.css";
 
 function QR() {
+  const { token, isAuthenticated } = useAuth();
   const [qrToken, setQrToken] = useState("");
+  const [vehicle, setVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
     const fetchQR = async () => {
       try {
-        const response = await fetch(
-          "http://localhost:3000/api/vehicles/2/qr"
-        );
+        const { ok, data } = await fetchMyVehicleQr(token);
 
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-          throw new Error(
-            data.message || "Failed to retrieve QR information."
-          );
+        if (!ok) {
+          throw new Error(data.message || "Failed to retrieve QR information.");
         }
 
+        setVehicle(data.vehicle);
         setQrToken(data.vehicle.qr_token);
       } catch (error) {
         console.error("QR error:", error);
@@ -31,26 +37,68 @@ function QR() {
     };
 
     fetchQR();
-  }, []);
+  }, [token]);
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
 
   if (loading) {
-    return <h2>Loading QR Code...</h2>;
+    return (
+      <main className="page-shell qr-owner-page">
+        <section className="surface-card qr-owner-card">
+          <p className="eyebrow">SmartCar QR</p>
+          <h1>My QR Code</h1>
+          <p className="state-message">Loading your QR code...</p>
+        </section>
+      </main>
+    );
   }
 
   if (error) {
-    return <h2>Error: {error}</h2>;
+    return (
+      <main className="page-shell qr-owner-page">
+        <section className="surface-card qr-owner-card">
+          <p className="eyebrow">SmartCar QR</p>
+          <h1>My QR Code</h1>
+          <p className="state-message state-message--error">{error}</p>
+        </section>
+      </main>
+    );
   }
 
-  const qrUrl = `http://localhost:5173/qr/${qrToken}`;
+  if (!vehicle || !qrToken) {
+    return (
+      <main className="page-shell qr-owner-page">
+        <section className="surface-card qr-owner-card">
+          <p className="eyebrow">SmartCar QR</p>
+          <h1>My QR Code</h1>
+          <p className="state-message">QR code not found.</p>
+        </section>
+      </main>
+    );
+  }
+
+  const qrUrl = `${window.location.origin}/qr/${qrToken}`;
 
   return (
-    <div>
-      <h1>SmartCar QR</h1>
+    <main className="page-shell qr-owner-page">
+      <section className="surface-card qr-owner-card">
+        <p className="eyebrow">SmartCar QR</p>
+        <h1>My QR Code</h1>
+        <p className="page-description">
+          Share this QR code so others can scan your vehicle information.
+        </p>
 
-      <h2>My QR Code</h2>
+        <div className="qr-canvas-shell">
+          <QRCodeCanvas value={qrUrl} size={240} includeMargin />
+        </div>
 
-      <QRCodeCanvas value={qrUrl} size={250} />
-    </div>
+        <p className="qr-note">
+          This QR links to your stored token and stays consistent until you update your registration.
+        </p>
+      </section>
+    </main>
   );
 }
 

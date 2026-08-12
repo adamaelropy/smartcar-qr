@@ -158,11 +158,11 @@ SmartCar QR follows a full-stack architecture:
 │     Node.js + Express.js    │
 └──────────────┬──────────────┘
                │
-               │ SQL
+               │ Prisma ORM
                ▼
 ┌─────────────────────────────┐
 │          Database           │
-│            MySQL            │
+│   Supabase PostgreSQL       │
 └─────────────────────────────┘
 ```
 
@@ -186,7 +186,8 @@ SmartCar QR follows a full-stack architecture:
 
 ### Database
 
-* MySQL
+* Supabase PostgreSQL
+* Prisma ORM
 
 ### Development Tools
 
@@ -206,7 +207,7 @@ The main goals of SmartCar QR are to:
 3. Provide an emergency communication mechanism.
 4. Securely manage vehicle-owner information.
 5. Demonstrate full-stack web development.
-6. Implement a real-world application using React, Node.js, Express, and MySQL.
+6. Implement a real-world application using React, Node.js, Express, Prisma, and PostgreSQL.
 7. Practice collaborative software development using Git and GitHub.
 
 ---

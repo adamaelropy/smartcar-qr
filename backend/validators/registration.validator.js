@@ -61,6 +61,8 @@ function validateRegistrationDetails({
 
     if (typeof relationship !== "string" || relationship.trim().length === 0) {
         errors.push("Relationship to emergency contact is required.");
+    } else if (relationship.trim().length > 100) {
+        errors.push("Relationship must be at most 100 characters.");
     }
 
     if (typeof plateNumber !== "string" || plateNumber.trim().length === 0) {

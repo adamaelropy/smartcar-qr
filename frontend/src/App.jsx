@@ -1,12 +1,13 @@
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-import { RegisterRoute } from "./components/ProtectedRoute";
+import { ProtectedRoute, RegisterRoute } from "./components/ProtectedRoute";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import SignUp from "./pages/SignUp";
 import QR from "./QR";
+import { fetchVehicleByQrToken } from "./services/api";
 
 import "./App.css";
 
@@ -25,16 +26,10 @@ function ScannedQR() {
   useEffect(() => {
     const fetchVehicle = async () => {
       try {
-        const response = await fetch(
-          `http://localhost:3000/api/qr/${token}`
-        );
+        const { ok, data } = await fetchVehicleByQrToken(token);
 
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-          throw new Error(
-            data.message || "Failed to retrieve QR information."
-          );
+        if (!ok) {
+          throw new Error(data.message || "Failed to retrieve QR information.");
         }
 
         setVehicle(data.vehicle);
@@ -50,37 +45,65 @@ function ScannedQR() {
   }, [token]);
 
   if (loading) {
-    return <h2>Loading...</h2>;
+    return (
+      <main className="page-shell qr-scan-page">
+        <section className="surface-card qr-scan-card">
+          <p className="eyebrow">Scanned QR</p>
+          <h1>SmartCar QR</h1>
+          <p className="state-message">Loading vehicle details...</p>
+        </section>
+      </main>
+    );
   }
 
   if (error) {
     return (
-      <div>
-        <h1>SmartCar QR</h1>
-        <h2>QR Code Error</h2>
-        <p>{error}</p>
-      </div>
+      <main className="page-shell qr-scan-page">
+        <section className="surface-card qr-scan-card">
+          <p className="eyebrow">Scanned QR</p>
+          <h1>SmartCar QR</h1>
+          <h2>QR Code Error</h2>
+          <p className="state-message state-message--error">{error}</p>
+        </section>
+      </main>
     );
   }
 
   if (!vehicle) {
-    return <h2>QR Code not found.</h2>;
+    return (
+      <main className="page-shell qr-scan-page">
+        <section className="surface-card qr-scan-card">
+          <p className="eyebrow">Scanned QR</p>
+          <h1>SmartCar QR</h1>
+          <p className="state-message">QR code not found.</p>
+        </section>
+      </main>
+    );
   }
 
   return (
-    <div>
-      <h1>SmartCar QR</h1>
+    <main className="page-shell qr-scan-page">
+      <section className="surface-card qr-scan-card">
+        <p className="eyebrow">Scanned QR</p>
+        <h1>SmartCar QR</h1>
+        <h2>Contact Vehicle Owner</h2>
+        <p className="page-description">
+          Choose how you want to reach the vehicle owner or emergency contact.
+        </p>
 
-      <h2>Contact Vehicle Owner</h2>
+        <div className="action-grid">
+          <button type="button">Message Owner</button>
+          <button type="button">Call Owner</button>
+        </div>
 
-      <button>Message Owner</button>
-      <button>Call Owner</button>
+        <h2>Emergency</h2>
 
-      <h2>Emergency</h2>
-
-      <button>Message Relative</button>
-      <button>Call Relative</button>
-    </div>
+        <div className="action-grid">
+          <button type="button">Message Relative</button>
+          <button type="button">Call Relative</button>
+        </div>
+      </section>
+    </main>
   );
 }
 
@@ -108,7 +131,14 @@ function App() {
       />
 
       {/* Owner QR page */}
-      <Route path="/qr" element={<QR />} />
+      <Route
+        path="/qr"
+        element={
+          <ProtectedRoute>
+            <QR />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Scanned QR page */}
       <Route path="/qr/:token" element={<ScannedQR />} />

@@ -38,6 +38,7 @@ model EmergencyContact {
   user_id        Int
   relative_name  String @db.VarChar(100)
   relative_phone String @db.VarChar(20)
+  relationship   String? @db.VarChar(100)
 
   user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
 }

@@ -54,7 +54,9 @@ async function submitRegistration(req, res) {
         const trimmedPhone = phone.trim();
         const trimmedRelativeName = relativeName.trim();
         const trimmedRelativePhone = relativePhone.trim();
-        const trimmedRelationship = relationship.trim();
+        const trimmedRelationship = typeof relationship === "string"
+            ? relationship.trim()
+            : null;
         const trimmedPlateNumber = plateNumber.trim();
         const trimmedCarName = carName.trim();
         const numericAge = Number(age);
@@ -108,7 +110,8 @@ async function submitRegistration(req, res) {
                 data: {
                     user_id: userId,
                     relative_name: trimmedRelativeName,
-                    relative_phone: trimmedRelativePhone
+                    relative_phone: trimmedRelativePhone,
+                    relationship: trimmedRelationship || null
                 }
             });
 
@@ -139,7 +142,7 @@ async function submitRegistration(req, res) {
             emergencyContact: {
                 relative_name: trimmedRelativeName,
                 relative_phone: trimmedRelativePhone,
-                relationship: trimmedRelationship
+                relationship: trimmedRelationship || null
             },
 
             vehicle: {

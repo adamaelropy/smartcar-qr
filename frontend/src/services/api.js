@@ -1,4 +1,9 @@
-const API_BASE = '/api';
+export const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
+
+export function buildApiUrl(path = '') {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE}${normalizedPath}`;
+}
 
 async function parseResponse(response) {
   let data;
@@ -35,7 +40,7 @@ export const fetchServices = async (params = {}) => {
   });
 
   const queryString = searchParams.toString();
-  const url = `${API_BASE}/services${queryString ? `?${queryString}` : ''}`;
+  const url = `${buildApiUrl('/services')}${queryString ? `?${queryString}` : ''}`;
 
   const response = await fetch(url);
 
@@ -53,7 +58,7 @@ export const searchServices = async (query) => {
   }
 
   const response = await fetch(
-    `${API_BASE}/services/search?query=${encodeURIComponent(query)}`
+    `${buildApiUrl('/services/search')}?query=${encodeURIComponent(query)}`
   );
 
   if (!response.ok) {
@@ -65,7 +70,7 @@ export const searchServices = async (query) => {
 };
 
 export async function login(username, password) {
-  const response = await fetch(`${API_BASE}/auth/login`, {
+  const response = await fetch(buildApiUrl('/auth/login'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
@@ -75,7 +80,7 @@ export async function login(username, password) {
 }
 
 export async function signup(username, password, confirmPassword) {
-  const response = await fetch(`${API_BASE}/auth/signup`, {
+  const response = await fetch(buildApiUrl('/auth/signup'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password, confirmPassword }),
@@ -85,11 +90,25 @@ export async function signup(username, password, confirmPassword) {
 }
 
 export async function submitRegistration(formData, token) {
-  const response = await fetch(`${API_BASE}/registration`, {
+  const response = await fetch(buildApiUrl('/registration'), {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify(formData),
   });
+
+  return parseResponse(response);
+}
+
+export async function fetchMyVehicleQr(token) {
+  const response = await fetch(buildApiUrl('/vehicles/me/qr'), {
+    headers: authHeaders(token),
+  });
+
+  return parseResponse(response);
+}
+
+export async function fetchVehicleByQrToken(token) {
+  const response = await fetch(buildApiUrl(`/qr/${encodeURIComponent(token)}`));
 
   return parseResponse(response);
 }
