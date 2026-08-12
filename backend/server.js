@@ -4,6 +4,8 @@ require("dotenv").config();
 
 const pool = require("./db");
 const serviceRoutes = require("./routes/serviceRoutes");
+const authRoutes = require("./routes/auth.routes");
+const registrationRoutes = require("./routes/registration.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,6 +15,9 @@ app.use(express.json());
 
 
 // Test route
+app.use("/api/auth", authRoutes);
+app.use("/api/registration", registrationRoutes);
+
 app.get("/", (req, res) => {
     res.json({
         message: "SmartCar QR Backend is running!"
