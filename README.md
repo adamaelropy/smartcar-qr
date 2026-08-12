@@ -28,7 +28,6 @@ The application also provides vehicle-related services, user profile management,
 * Secure password requirements:
 
   * Minimum 6 characters
-  * Maximum 10 characters
   * At least 1 uppercase letter
   * At least 1 lowercase letter
   * At least 1 number
