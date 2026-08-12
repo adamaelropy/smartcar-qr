@@ -1,9 +1,10 @@
-const crypto = require("crypto");
-const pool = require("../db");
+const prisma = require("../db");
+
 const {
     validateSignupInput,
     validateLoginInput
 } = require("../validators/auth.validator");
+
 const { hashPassword, comparePassword } = require("../utils/password");
 const { buildSignupPlaceholders } = require("../utils/userDefaults");
 const { signToken } = require("../utils/jwt");
@@ -29,12 +30,17 @@ async function signup(req, res) {
 
         const trimmedUsername = username.trim();
 
-        const [existingUsers] = await pool.query(
-            "SELECT user_id FROM users WHERE username = ?",
-            [trimmedUsername]
-        );
+        // Check whether username already exists
+        const existingUser = await prisma.user.findUnique({
+            where: {
+                username: trimmedUsername
+            },
+            select: {
+                user_id: true
+            }
+        });
 
-        if (existingUsers.length > 0) {
+        if (existingUser) {
             return res.status(409).json({
                 success: false,
                 message: "Username is already taken."
@@ -44,25 +50,28 @@ async function signup(req, res) {
         const passwordHash = await hashPassword(password);
         const placeholders = buildSignupPlaceholders(trimmedUsername);
 
-        const [result] = await pool.query(
-            `INSERT INTO users (username, password_hash, name, age, phone, email)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [
-                trimmedUsername,
-                passwordHash,
-                placeholders.name,
-                placeholders.age,
-                placeholders.phone,
-                placeholders.email
-            ]
-        );
+        // Create user
+        const createdUser = await prisma.user.create({
+            data: {
+                username: trimmedUsername,
+                password_hash: passwordHash,
+                name: placeholders.name,
+                age: placeholders.age,
+                phone: placeholders.phone,
+                email: placeholders.email
+            },
+            select: {
+                user_id: true,
+                username: true
+            }
+        });
+
+        const token = signToken(createdUser);
 
         const user = {
-            user_id: result.insertId,
-            username: trimmedUsername
+            user_id: createdUser.user_id,
+            username: createdUser.username
         };
-
-        const token = signToken(user);
 
         return res.status(201).json({
             success: true,
@@ -71,6 +80,7 @@ async function signup(req, res) {
             user,
             registrationComplete: false
         });
+
     } catch (error) {
         console.error("Signup error:", error.message);
 
@@ -91,7 +101,10 @@ async function login(req, res) {
     try {
         const { username, password } = req.body;
 
-        const validationErrors = validateLoginInput({ username, password });
+        const validationErrors = validateLoginInput({
+            username,
+            password
+        });
 
         if (validationErrors.length > 0) {
             return res.status(400).json({
@@ -103,20 +116,29 @@ async function login(req, res) {
 
         const trimmedUsername = username.trim();
 
-        const [users] = await pool.query(
-            "SELECT user_id, username, password_hash FROM users WHERE username = ?",
-            [trimmedUsername]
-        );
+        // Find user
+        const user = await prisma.user.findUnique({
+            where: {
+                username: trimmedUsername
+            },
+            select: {
+                user_id: true,
+                username: true,
+                password_hash: true
+            }
+        });
 
-        if (users.length === 0) {
+        if (!user) {
             return res.status(401).json({
                 success: false,
                 message: "Invalid username or password."
             });
         }
 
-        const user = users[0];
-        const passwordMatches = await comparePassword(password, user.password_hash);
+        const passwordMatches = await comparePassword(
+            password,
+            user.password_hash
+        );
 
         if (!passwordMatches) {
             return res.status(401).json({
@@ -125,7 +147,10 @@ async function login(req, res) {
             });
         }
 
-        const registrationComplete = await isRegistrationComplete(user.user_id);
+        const registrationComplete = await isRegistrationComplete(
+            user.user_id
+        );
+
         const token = signToken(user);
 
         return res.status(200).json({
@@ -138,6 +163,7 @@ async function login(req, res) {
             },
             registrationComplete
         });
+
     } catch (error) {
         console.error("Login error:", error.message);
 

@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  user_id       Int       @id @default(autoincrement())
+  name          String    @db.VarChar(100)
+  username      String    @unique @db.VarChar(50)
+  age           Int
+  phone         String    @db.VarChar(20)
+  email         String    @unique @db.VarChar(100)
+  password_hash String    @db.VarChar(255)
+  created_at    DateTime  @default(now())
+
+  vehicle           Vehicle?
+  emergencyContacts EmergencyContact[]
+  passwordResets    PasswordReset[]
+}
+
+model Vehicle {
+  vehicle_id   Int    @id @default(autoincrement())
+  user_id      Int    @unique
+  plate_number String @unique @db.VarChar(20)
+  car_name     String @db.VarChar(100)
+  year_model   Int
+  qr_token     String @unique @db.VarChar(100)
+
+  user           User            @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  communications Communication[]
+}
+
+model EmergencyContact {
+  contact_id     Int    @id @default(autoincrement())
+  user_id        Int
+  relative_name  String @db.VarChar(100)
+  relative_phone String @db.VarChar(20)
+
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+}
+
+model Service {
+  service_id   Int      @id @default(autoincrement())
+  service_name String   @db.VarChar(100)
+  service_type ServiceType
+  location     String   @db.VarChar(255)
+  availability Boolean  @default(true)
+}
+
+model Communication {
+  communication_id BigInt           @id
+  vehicle_id       Int
+  type             CommunicationType
+  direction        CommunicationDirection
+  message          String?
+  created_at       DateTime         @default(now())
+
+  vehicle Vehicle @relation(fields: [vehicle_id], references: [vehicle_id], onDelete: Cascade, onUpdate: Cascade)
+}
+
+model PasswordReset {
+  reset_id   Int      @id @default(autoincrement())
+  user_id    Int
+  token      String   @unique @db.VarChar(255)
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+}
+
+enum ServiceType {
+  TYRE_CHANGE
+  OIL_CHANGE
+  CAR_WASH
+  TOW_SERVICE
+}
+
+enum CommunicationType {
+  MESSAGE
+  CALL
+}
+
+enum CommunicationDirection {
+  SENT
+  RECEIVED
+}

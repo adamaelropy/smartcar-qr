@@ -1,22 +1,25 @@
-const pool = require("../db");
+const prisma = require("../db");
 
 const getServices = async (req, res) => {
     try {
-        const [services] = await pool.query(`
-            SELECT
-                service_id,
-                service_name,
-                service_type,
-                location,
-                availability
-            FROM services
-            ORDER BY service_id ASC
-        `);
+        const services = await prisma.service.findMany({
+            orderBy: {
+                service_id: "asc"
+            },
+            select: {
+                service_id: true,
+                service_name: true,
+                service_type: true,
+                location: true,
+                availability: true
+            }
+        });
 
         res.status(200).json({
             success: true,
             services
         });
+
     } catch (error) {
         console.error("Get services error:", error);
 
@@ -26,6 +29,7 @@ const getServices = async (req, res) => {
         });
     }
 };
+
 
 const searchServices = async (req, res) => {
     try {
@@ -38,29 +42,42 @@ const searchServices = async (req, res) => {
             });
         }
 
-        const searchTerm = `%${query.trim()}%`;
+        const searchTerm = query.trim();
 
-        const [services] = await pool.query(
-            `
-            SELECT
-                service_id,
-                service_name,
-                service_type,
-                location,
-                availability
-            FROM services
-            WHERE service_name LIKE ?
-               OR service_type LIKE ?
-               OR location LIKE ?
-            ORDER BY service_id ASC
-            `,
-            [searchTerm, searchTerm, searchTerm]
-        );
+        const services = await prisma.service.findMany({
+            where: {
+                OR: [
+                    {
+                        service_name: {
+                            contains: searchTerm,
+                            mode: "insensitive"
+                        }
+                    },
+                    {
+                        location: {
+                            contains: searchTerm,
+                            mode: "insensitive"
+                        }
+                    }
+                ]
+            },
+            orderBy: {
+                service_id: "asc"
+            },
+            select: {
+                service_id: true,
+                service_name: true,
+                service_type: true,
+                location: true,
+                availability: true
+            }
+        });
 
         res.status(200).json({
             success: true,
             services
         });
+
     } catch (error) {
         console.error("Search services error:", error);
 
@@ -71,43 +88,41 @@ const searchServices = async (req, res) => {
     }
 };
 
+
 const filterServices = async (req, res) => {
     try {
         const { type, availability } = req.query;
 
-        let query = `
-            SELECT
-                service_id,
-                service_name,
-                service_type,
-                location,
-                availability
-            FROM services
-            WHERE 1 = 1
-        `;
-
-        const params = [];
+        const where = {};
 
         if (type) {
-            query += " AND service_type = ?";
-            params.push(type);
+            where.service_type = type;
         }
 
         if (availability !== undefined) {
-            query += " AND availability = ?";
-            params.push(
-                availability === "true" || availability === "1" ? 1 : 0
-            );
+            where.availability =
+                availability === "true" || availability === "1";
         }
 
-        query += " ORDER BY service_id ASC";
-
-        const [services] = await pool.query(query, params);
+        const services = await prisma.service.findMany({
+            where,
+            orderBy: {
+                service_id: "asc"
+            },
+            select: {
+                service_id: true,
+                service_name: true,
+                service_type: true,
+                location: true,
+                availability: true
+            }
+        });
 
         res.status(200).json({
             success: true,
             services
         });
+
     } catch (error) {
         console.error("Filter services error:", error);
 
@@ -117,6 +132,7 @@ const filterServices = async (req, res) => {
         });
     }
 };
+
 
 module.exports = {
     getServices,

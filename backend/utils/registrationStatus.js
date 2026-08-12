@@ -1,12 +1,16 @@
-const pool = require("../db");
+const prisma = require("../db");
 
 async function isRegistrationComplete(userId) {
-    const [vehicles] = await pool.query(
-        "SELECT vehicle_id FROM vehicles WHERE user_id = ? LIMIT 1",
-        [userId]
-    );
+    const vehicle = await prisma.vehicle.findUnique({
+        where: {
+            user_id: userId
+        },
+        select: {
+            vehicle_id: true
+        }
+    });
 
-    return vehicles.length > 0;
+    return vehicle !== null;
 }
 
 module.exports = {

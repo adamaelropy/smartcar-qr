@@ -1,14 +1,19 @@
 const crypto = require("crypto");
-const pool = require("../db");
-const { validateRegistrationDetails } = require("../validators/registration.validator");
-const { isRegistrationComplete } = require("../utils/registrationStatus");
+const prisma = require("../db");
+
+const {
+    validateRegistrationDetails
+} = require("../validators/registration.validator");
+
+const {
+    isRegistrationComplete
+} = require("../utils/registrationStatus");
 
 function generateQrToken() {
     return crypto.randomBytes(32).toString("hex");
 }
 
 async function submitRegistration(req, res) {
-    const connection = await pool.getConnection();
     const userId = req.user.userId;
 
     try {
@@ -45,13 +50,30 @@ async function submitRegistration(req, res) {
         }
 
         const trimmedEmail = email.trim().toLowerCase();
+        const trimmedName = fullName.trim();
+        const trimmedPhone = phone.trim();
+        const trimmedRelativeName = relativeName.trim();
+        const trimmedRelativePhone = relativePhone.trim();
+        const trimmedRelationship = relationship.trim();
+        const trimmedPlateNumber = plateNumber.trim();
+        const trimmedCarName = carName.trim();
+        const numericAge = Number(age);
+        const numericYearModel = Number(yearModel);
 
-        const [existingEmails] = await connection.query(
-            "SELECT user_id FROM users WHERE email = ? AND user_id != ?",
-            [trimmedEmail, userId]
-        );
+        // Check whether another user is already using this email
+        const existingEmail = await prisma.user.findFirst({
+            where: {
+                email: trimmedEmail,
+                NOT: {
+                    user_id: userId
+                }
+            },
+            select: {
+                user_id: true
+            }
+        });
 
-        if (existingEmails.length > 0) {
+        if (existingEmail) {
             return res.status(409).json({
                 success: false,
                 message: "Email is already in use."
@@ -60,59 +82,75 @@ async function submitRegistration(req, res) {
 
         const qrToken = generateQrToken();
 
-        await connection.beginTransaction();
+        /*
+         * Create all registration data inside one transaction.
+         *
+         * If any operation fails, Prisma automatically rolls
+         * everything back.
+         */
+        await prisma.$transaction(async (tx) => {
 
-        await connection.query(
-            `UPDATE users
-             SET name = ?, age = ?, phone = ?, email = ?
-             WHERE user_id = ?`,
-            [fullName.trim(), Number(age), phone.trim(), trimmedEmail, userId]
-        );
+            // Update user profile
+            await tx.user.update({
+                where: {
+                    user_id: userId
+                },
+                data: {
+                    name: trimmedName,
+                    age: numericAge,
+                    phone: trimmedPhone,
+                    email: trimmedEmail
+                }
+            });
 
-        await connection.query(
-            `INSERT INTO emergency_contacts (user_id, relative_name, relative_phone)
-             VALUES (?, ?, ?)`,
-            [userId, relativeName.trim(), relativePhone.trim()]
-        );
+            // Create emergency contact
+            await tx.emergencyContact.create({
+                data: {
+                    user_id: userId,
+                    relative_name: trimmedRelativeName,
+                    relative_phone: trimmedRelativePhone
+                }
+            });
 
-        await connection.query(
-            `INSERT INTO vehicles (user_id, plate_number, car_name, year_model, qr_token)
-             VALUES (?, ?, ?, ?, ?)`,
-            [
-                userId,
-                plateNumber.trim(),
-                carName.trim(),
-                Number(yearModel),
-                qrToken
-            ]
-        );
-
-        await connection.commit();
+            // Create vehicle and QR token
+            await tx.vehicle.create({
+                data: {
+                    user_id: userId,
+                    plate_number: trimmedPlateNumber,
+                    car_name: trimmedCarName,
+                    year_model: numericYearModel,
+                    qr_token: qrToken
+                }
+            });
+        });
 
         return res.status(201).json({
             success: true,
             message: "Registration completed successfully.",
+
             profile: {
                 user_id: userId,
-                name: fullName.trim(),
-                age: Number(age),
-                phone: phone.trim(),
+                name: trimmedName,
+                age: numericAge,
+                phone: trimmedPhone,
                 email: trimmedEmail
             },
+
             emergencyContact: {
-                relative_name: relativeName.trim(),
-                relative_phone: relativePhone.trim(),
-                relationship: relationship.trim()
+                relative_name: trimmedRelativeName,
+                relative_phone: trimmedRelativePhone,
+                relationship: trimmedRelationship
             },
+
             vehicle: {
-                plate_number: plateNumber.trim(),
-                car_name: carName.trim(),
-                year_model: Number(yearModel),
+                plate_number: trimmedPlateNumber,
+                car_name: trimmedCarName,
+                year_model: numericYearModel,
                 qr_token: qrToken
             }
         });
+
     } catch (error) {
-        await connection.rollback();
         console.error("Registration error:", error.message);
 
         const response = {
@@ -125,8 +163,6 @@ async function submitRegistration(req, res) {
         }
 
         return res.status(500).json(response);
-    } finally {
-        connection.release();
     }
 }
 

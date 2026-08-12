@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
-const pool = require("./db");
+const prisma = require("./db");
 
 const serviceRoutes = require("./routes/serviceRoutes");
 const authRoutes = require("./routes/auth.routes");
@@ -14,7 +14,6 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-
 // ==============================
 // Test Backend
 // ==============================
@@ -25,20 +24,18 @@ app.get("/", (req, res) => {
     });
 });
 
-
 // ==============================
-// Test MySQL Connection
+// Test Supabase / Prisma Connection
 // ==============================
 
 app.get("/api/test-db", async (req, res) => {
     try {
-        const [rows] = await pool.query("SELECT 1 AS result");
+        const result = await prisma.$queryRaw`SELECT 1 AS result`;
 
         res.json({
             success: true,
-            message: "MySQL connection successful!",
-            database: process.env.DB_NAME,
-            result: rows[0].result
+            message: "Supabase PostgreSQL connection successful!",
+            result: Number(result[0].result)
         });
 
     } catch (error) {
@@ -46,11 +43,10 @@ app.get("/api/test-db", async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "MySQL connection failed."
+            message: "Supabase PostgreSQL connection failed."
         });
     }
 });
-
 
 // ==============================
 // Authentication Routes
@@ -58,20 +54,17 @@ app.get("/api/test-db", async (req, res) => {
 
 app.use("/api/auth", authRoutes);
 
-
 // ==============================
 // Registration Routes
 // ==============================
 
 app.use("/api/registration", registrationRoutes);
 
-
 // ==============================
 // Services Routes
 // ==============================
 
 app.use("/api/services", serviceRoutes);
-
 
 // ==============================
 // Get Vehicle Using QR Token
@@ -81,19 +74,20 @@ app.get("/api/qr/:token", async (req, res) => {
     const { token } = req.params;
 
     try {
-        const [rows] = await pool.query(
-            `SELECT
-                vehicle_id,
-                user_id,
-                plate_number,
-                car_name,
-                year_model
-             FROM vehicles
-             WHERE qr_token = ?`,
-            [token]
-        );
+        const vehicle = await prisma.vehicle.findUnique({
+            where: {
+                qr_token: token
+            },
+            select: {
+                vehicle_id: true,
+                user_id: true,
+                plate_number: true,
+                car_name: true,
+                year_model: true
+            }
+        });
 
-        if (rows.length === 0) {
+        if (!vehicle) {
             return res.status(404).json({
                 success: false,
                 message: "QR code not found."
@@ -102,7 +96,7 @@ app.get("/api/qr/:token", async (req, res) => {
 
         res.json({
             success: true,
-            vehicle: rows[0]
+            vehicle
         });
 
     } catch (error) {
@@ -115,7 +109,6 @@ app.get("/api/qr/:token", async (req, res) => {
     }
 });
 
-
 // ==============================
 // Get Vehicle QR Information
 // ==============================
@@ -124,20 +117,21 @@ app.get("/api/vehicles/:vehicleId/qr", async (req, res) => {
     const { vehicleId } = req.params;
 
     try {
-        const [rows] = await pool.query(
-            `SELECT
-                vehicle_id,
-                user_id,
-                plate_number,
-                car_name,
-                year_model,
-                qr_token
-             FROM vehicles
-             WHERE vehicle_id = ?`,
-            [vehicleId]
-        );
+        const vehicle = await prisma.vehicle.findUnique({
+            where: {
+                vehicle_id: Number(vehicleId)
+            },
+            select: {
+                vehicle_id: true,
+                user_id: true,
+                plate_number: true,
+                car_name: true,
+                year_model: true,
+                qr_token: true
+            }
+        });
 
-        if (rows.length === 0) {
+        if (!vehicle) {
             return res.status(404).json({
                 success: false,
                 message: "Vehicle not found."
@@ -146,7 +140,7 @@ app.get("/api/vehicles/:vehicleId/qr", async (req, res) => {
 
         res.json({
             success: true,
-            vehicle: rows[0]
+            vehicle
         });
 
     } catch (error) {
@@ -158,7 +152,6 @@ app.get("/api/vehicles/:vehicleId/qr", async (req, res) => {
         });
     }
 });
-
 
 // ==============================
 // Start Server
