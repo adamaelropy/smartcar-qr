@@ -57,7 +57,7 @@ The profile also provides:
 
 ### 🚘 My Vehicle
 
-Users can view their registered vehicle information:
+Users can view and edit their registered vehicle information:
 
 * Plate number
 * Car name
@@ -82,7 +82,6 @@ This can be used when a vehicle is blocking another car or requires the owner's 
 
 * Send an emergency message to the registered relative
 * Initiate a call to the registered relative
-* Include the incident location when available
 
 Sensitive personal information will not be stored directly inside the QR code. Instead, the QR code will reference a unique vehicle identifier handled by the backend.
 
