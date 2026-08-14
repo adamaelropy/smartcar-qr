@@ -1,3 +1,5 @@
+import { getServiceTypeLabel } from '../constants/serviceTypes';
+
 function ServiceCard({ service }) {
   if (!service) {
     return null;
@@ -13,7 +15,7 @@ function ServiceCard({ service }) {
       </div>
 
       <p>
-        <strong>Type:</strong> {service.service_type}
+        <strong>Type:</strong> {getServiceTypeLabel(service.service_type)}
       </p>
       <p>
         <strong>Location:</strong> {service.location}

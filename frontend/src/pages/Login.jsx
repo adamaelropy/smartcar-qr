@@ -33,7 +33,7 @@ function Login() {
       login(data.token, data.user, data.registrationComplete);
 
       if (data.registrationComplete) {
-        navigate('/');
+        navigate('/home');
       } else {
         navigate('/register');
       }

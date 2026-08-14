@@ -52,6 +52,11 @@ export function AuthProvider({ children }) {
     setRegistrationComplete(true);
   };
 
+  const updateStoredUser = (nextUser) => {
+    localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+    setUser(nextUser);
+  };
+
   const logout = () => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
@@ -69,6 +74,7 @@ export function AuthProvider({ children }) {
       registrationComplete,
       login,
       completeRegistration,
+      updateStoredUser,
       logout,
     }),
     [token, user, registrationComplete],

@@ -27,7 +27,7 @@
 
   font: 16px/1.55 var(--sans);
   letter-spacing: 0.01em;
-  color-scheme: dark;
+  color-scheme: light dark;
   color: var(--text);
   background:
     radial-gradient(circle at top left, rgba(79, 209, 197, 0.16), transparent 30%),
@@ -126,4 +126,34 @@ p {
 ::selection {
   background: rgba(79, 209, 197, 0.35);
   color: var(--text-h);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #eef4fb;
+    --bg-alt: #f6f9ff;
+    --surface: rgba(255, 255, 255, 0.9);
+    --surface-strong: #ffffff;
+    --surface-soft: rgba(235, 242, 252, 0.82);
+    --border: rgba(18, 34, 56, 0.14);
+    --border-strong: rgba(43, 184, 209, 0.4);
+    --text: #24364f;
+    --text-h: #0c203b;
+    --muted: #58708d;
+    --accent-soft: rgba(43, 184, 209, 0.12);
+    --danger-soft: rgba(255, 118, 117, 0.14);
+    --success-soft: rgba(83, 209, 141, 0.14);
+    --shadow: 0 20px 45px rgba(32, 56, 87, 0.18);
+    --shadow-soft: 0 10px 24px rgba(32, 56, 87, 0.12);
+    background:
+      radial-gradient(circle at top left, rgba(79, 209, 197, 0.18), transparent 30%),
+      radial-gradient(circle at top right, rgba(43, 184, 209, 0.13), transparent 24%),
+      linear-gradient(180deg, #f8fbff 0%, var(--bg) 42%, #edf4fb 100%);
+  }
+
+  body::before {
+    background-image:
+      linear-gradient(rgba(24, 40, 67, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(24, 40, 67, 0.04) 1px, transparent 1px);
+  }
 }

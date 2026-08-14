@@ -46,7 +46,7 @@ function Register() {
       }
 
       completeRegistration();
-      navigate('/');
+      navigate('/home');
     } catch {
       setError('Unable to reach the server. Is the backend running?');
     } finally {

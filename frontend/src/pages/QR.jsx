@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { Navigate } from "react-router-dom";
-import { useAuth } from "./context/AuthContext";
-import { fetchMyVehicleQr } from "./services/api";
-import "./styles/auth.css";
+import { useAuth } from "../context/AuthContext";
+import { fetchMyVehicleQr } from "../services/api";
+import "../styles/auth.css";
 
 function QR() {
   const { token, isAuthenticated } = useAuth();

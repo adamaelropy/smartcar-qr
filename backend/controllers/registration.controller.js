@@ -1,4 +1,3 @@
-const crypto = require("crypto");
 const prisma = require("../db");
 
 const {
@@ -9,9 +8,9 @@ const {
     isRegistrationComplete
 } = require("../utils/registrationStatus");
 
-function generateQrToken() {
-    return crypto.randomBytes(32).toString("hex");
-}
+const {
+    generateQrToken
+} = require("../utils/qrToken");
 
 async function submitRegistration(req, res) {
     const userId = req.user.userId;

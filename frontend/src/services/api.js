@@ -30,44 +30,20 @@ function authHeaders(token) {
   };
 }
 
-export const fetchServices = async (params = {}) => {
-  const searchParams = new URLSearchParams();
-
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      searchParams.append(key, value);
-    }
-  });
-
-  const queryString = searchParams.toString();
-  const url = `${buildApiUrl('/services')}${queryString ? `?${queryString}` : ''}`;
-
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch services');
+export async function fetchServices() {
+  try {
+    const response = await fetch(buildApiUrl('/services'));
+    return parseResponse(response);
+  } catch {
+    return {
+      ok: false,
+      status: 0,
+      data: {
+        message: 'Unable to reach the server. Is the backend running on port 3000?',
+      },
+    };
   }
-
-  const data = await response.json();
-  return data.services || [];
-};
-
-export const searchServices = async (query) => {
-  if (!query || !query.trim()) {
-    return [];
-  }
-
-  const response = await fetch(
-    `${buildApiUrl('/services/search')}?query=${encodeURIComponent(query)}`
-  );
-
-  if (!response.ok) {
-    throw new Error('Failed to search services');
-  }
-
-  const data = await response.json();
-  return data.services || [];
-};
+}
 
 export async function login(username, password) {
   const response = await fetch(buildApiUrl('/auth/login'), {
@@ -94,6 +70,34 @@ export async function submitRegistration(formData, token) {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify(formData),
+  });
+
+  return parseResponse(response);
+}
+
+export async function fetchMyProfile(token) {
+  const response = await fetch(buildApiUrl('/auth/me'), {
+    headers: authHeaders(token),
+  });
+
+  return parseResponse(response);
+}
+
+export async function updateMyProfile(token, profileData) {
+  const response = await fetch(buildApiUrl('/auth/me'), {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify(profileData),
+  });
+
+  return parseResponse(response);
+}
+
+export async function changePassword(token, passwordData) {
+  const response = await fetch(buildApiUrl('/auth/password'), {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify(passwordData),
   });
 
   return parseResponse(response);

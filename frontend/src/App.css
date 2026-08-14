@@ -5,11 +5,78 @@
   flex: 1;
 }
 
+.dashboard-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-nav-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  backdrop-filter: blur(12px);
+  background: rgba(7, 13, 24, 0.68);
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard-nav {
+  padding-top: 0.9rem;
+  padding-bottom: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dashboard-brand {
+  color: var(--text-h);
+  font-family: var(--heading);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: clamp(1.35rem, 2.5vw, 1.85rem);
+  line-height: 1.1;
+  flex-shrink: 0;
+}
+
+.dashboard-links {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.dashboard-link {
+  padding: 0.52rem 0.85rem;
+  border-radius: 10px;
+  text-decoration: none;
+  border: 1px solid transparent;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.dashboard-link:hover {
+  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dashboard-link.is-active {
+  color: var(--text-h);
+  border-color: var(--border-strong);
+  background: var(--accent-soft);
+}
+
+.home-welcome {
+  width: 100%;
+  text-align: center;
+  padding: clamp(2rem, 8vw, 5rem) 0;
+}
+
 .surface-card,
 .home-card,
 .auth-card,
-.service-card,
-.communication-item {
+.service-card {
   background: linear-gradient(180deg, var(--surface), rgba(10, 17, 29, 0.72));
   border: 1px solid var(--border);
   border-radius: 24px;
@@ -41,7 +108,6 @@
 .page-description,
 .qr-note,
 .home-card > p,
-.communication-item p,
 .service-card p,
 .state-message {
   color: var(--muted);
@@ -74,8 +140,7 @@
 
 .action-grid button,
 .home-actions button,
-.auth-button,
-.service-search button {
+.auth-button {
   border: 0;
   border-radius: 14px;
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
@@ -87,22 +152,19 @@
 
 .action-grid button:hover,
 .home-actions button:hover,
-.auth-button:hover,
-.service-search button:hover {
+.auth-button:hover {
   transform: translateY(-1px);
 }
 
 .action-grid button:disabled,
 .home-actions button:disabled,
-.auth-button:disabled,
-.service-search button:disabled {
+.auth-button:disabled {
   cursor: not-allowed;
   opacity: 0.7;
   transform: none;
 }
 
 .home-page,
-.communications-page,
 .qr-owner-page,
 .qr-scan-page {
   display: flex;
@@ -121,6 +183,22 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+}
+
+.dashboard-page {
+  width: min(1120px, calc(100% - 2rem));
+}
+
+.dashboard-home-card h1,
+.services-page-card h1,
+.profile-card h1 {
+  margin-bottom: 0.2rem;
+}
+
+.home-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
 }
 
 .home-card h1 {
@@ -160,17 +238,19 @@
   display: flex;
   gap: 0.75rem;
   align-items: center;
+  width: 100%;
 }
 
-.service-loading-inline {
-  flex: 0 0 auto;
-  font-size: 0.9rem;
-  color: var(--muted);
-  padding: 0.45rem 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.03);
-  white-space: nowrap;
+.service-toolbar {
+  display: grid;
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.services-page-card .service-list {
+  margin-top: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
 }
 
 .service-search input,
@@ -201,15 +281,13 @@
   box-shadow: 0 0 0 4px rgba(79, 209, 197, 0.12);
 }
 
-.service-list,
-.communication-list {
+.service-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1rem;
 }
 
-.service-card,
-.communication-item {
+.service-card {
   padding: 1.15rem;
   border-radius: 20px;
   border: 1px solid var(--border);
@@ -225,13 +303,11 @@
   margin-bottom: 0.95rem;
 }
 
-.service-card h3,
-.communication-item h2 {
+.service-card h3 {
   margin: 0;
 }
 
-.service-card p,
-.communication-item p {
+.service-card p {
   margin-top: 0.75rem;
 }
 
@@ -286,6 +362,173 @@
   max-width: 42rem;
 }
 
+.profile-card {
+  gap: 1.15rem;
+}
+
+.profile-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.profile-edit-button,
+.profile-save-button,
+.profile-password-button {
+  min-width: 9rem;
+  padding: 0.75rem 1.15rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-strong);
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #04111f;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-edit-button:hover,
+.profile-save-button:hover,
+.profile-password-button:hover {
+  filter: brightness(1.03);
+}
+
+.profile-cancel-button {
+  min-width: 9rem;
+  padding: 0.75rem 1.15rem;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-h);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.profile-cancel-button:hover {
+  border-color: var(--border-strong);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.profile-edit-form,
+.profile-password-form {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.profile-edit-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.profile-edit-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.profile-input {
+  width: 100%;
+  padding: 0.72rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-h);
+}
+
+.profile-input:focus {
+  outline: none;
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.profile-form-actions,
+.profile-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.profile-form-actions {
+  margin-top: 0.35rem;
+}
+
+.profile-actions {
+  margin-top: 0.5rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--border);
+}
+
+.profile-success {
+  padding: 0.7rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid rgba(83, 209, 141, 0.35);
+  background: var(--success-soft);
+  color: var(--success);
+  font-weight: 600;
+}
+
+.profile-password-panel {
+  border-top: 1px solid var(--border);
+  padding-top: 1.1rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.profile-section {
+  border-top: 1px solid var(--border);
+  padding-top: 1.1rem;
+}
+
+.profile-section--last {
+  margin-bottom: 0.5rem;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.55rem;
+}
+
+.profile-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) 1fr;
+  gap: 0.9rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.profile-label {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.profile-value {
+  color: var(--text-h);
+  word-break: break-word;
+}
+
+.profile-qr-shell {
+  width: fit-content;
+}
+
+.profile-logout-button {
+  min-width: 9rem;
+  padding: 0.85rem 1.25rem;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-h);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.profile-logout-button:hover {
+  border-color: var(--border-strong);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
 .qr-scan-card {
   text-align: left;
   align-items: stretch;
@@ -295,18 +538,7 @@
   min-height: 3.25rem;
 }
 
-.communications-page {
-  min-height: calc(100vh - 1rem);
-  padding: 1.5rem 0 3rem;
-}
 
-.communications-page header {
-  margin-bottom: 1rem;
-}
-
-.communications-page .communication-list {
-  width: 100%;
-}
 
 @media (max-width: 960px) {
   .page-shell {
@@ -318,8 +550,7 @@
     grid-template-columns: 1fr;
   }
 
-  .service-list,
-  .communication-list {
+  .service-list {
     grid-template-columns: 1fr;
   }
 
@@ -331,11 +562,24 @@
   .home-actions button {
     width: 100%;
   }
+
+  .dashboard-nav {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dashboard-links {
+    width: 100%;
+  }
+
+  .dashboard-link {
+    flex: 1 1 auto;
+    text-align: center;
+  }
 }
 
 @media (max-width: 640px) {
   .home-page,
-  .communications-page,
   .qr-owner-page,
   .qr-scan-page {
     align-items: stretch;
@@ -346,5 +590,29 @@
   .qr-owner-card,
   .qr-scan-card {
     border-radius: 20px;
+  }
+
+  .profile-row {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+  }
+
+  .profile-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .profile-edit-button,
+  .profile-form-actions,
+  .profile-actions {
+    width: 100%;
+  }
+
+  .profile-edit-button,
+  .profile-save-button,
+  .profile-cancel-button,
+  .profile-password-button,
+  .profile-logout-button {
+    width: 100%;
   }
 }

@@ -2,12 +2,16 @@ import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 import { ProtectedRoute, RegisterRoute } from "./components/ProtectedRoute";
+import DashboardLayout from "./components/DashboardLayout";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import SignUp from "./pages/SignUp";
-import QR from "./QR";
+import Services from "./pages/Services";
+import Profile from "./pages/Profile";
+import QR from "./pages/QR";
 import { fetchVehicleByQrToken } from "./services/api";
+import { useAuth } from "./context/AuthContext";
 
 import "./App.css";
 
@@ -112,11 +116,25 @@ function ScannedQR() {
 // Main App
 // ==============================
 
+function RootRedirect() {
+  const { isAuthenticated, registrationComplete } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!registrationComplete) {
+    return <Navigate to="/register" replace />;
+  }
+
+  return <Navigate to="/home" replace />;
+}
+
 function App() {
   return (
     <Routes>
-      {/* Main application pages */}
-      <Route path="/" element={<Home />} />
+      {/* Public auth pages */}
+      <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
 
@@ -129,6 +147,19 @@ function App() {
           </RegisterRoute>
         }
       />
+
+      {/* Authenticated dashboard pages */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <DashboardLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/home" element={<Home />} />
+        <Route path="/services" element={<Services />} />
+        <Route path="/profile" element={<Profile />} />
+      </Route>
 
       {/* Owner QR page */}
       <Route
