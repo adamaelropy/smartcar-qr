@@ -10,6 +10,8 @@ const registrationRoutes = require("./routes/registration.routes");
 const { authenticate } = require("./middleware/auth.middleware");
 
 const app = express();
+// Disable ETag to avoid 304 responses for dynamic API data
+app.disable('etag');
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());

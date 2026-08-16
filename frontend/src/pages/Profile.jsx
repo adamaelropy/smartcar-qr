@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { QRCodeCanvas } from 'qrcode.react';
 import { useNavigate } from 'react-router-dom';
+import { QRCodeCanvas } from 'qrcode.react';
 import { useAuth } from '../context/AuthContext';
 import {
   changePassword as changePasswordRequest,
@@ -199,6 +199,8 @@ function Profile() {
     }
   };
 
+  
+
   const openChangePassword = () => {
     setPasswordForm({
       currentPassword: '',
@@ -290,9 +292,17 @@ function Profile() {
     <main className="page-shell dashboard-page">
       <section className="home-card profile-card">
         <div className="profile-header">
-          <div>
-            <p className="eyebrow">Profile</p>
-            <h1>My Profile</h1>
+          <div className="profile-title-with-thumb">
+            <div>
+              <p className="eyebrow">Profile</p>
+              <h1>My Profile</h1>
+            </div>
+
+            {vehicle && qrToken && (
+              <div className="profile-qr-thumb" aria-label="My QR">
+                <QRCodeCanvas value={qrUrl} size={64} includeMargin={false} />
+              </div>
+            )}
           </div>
 
           {!isEditing && !isChangingPassword && (
@@ -493,19 +503,17 @@ function Profile() {
               {!vehicle ? (
                 <p className="state-message">No vehicle registered.</p>
               ) : qrError ? (
-                <p className="state-message state-message--error">{qrError}</p>
-              ) : qrToken ? (
-                <>
-                  <div className="qr-canvas-shell profile-qr-shell">
-                    <QRCodeCanvas value={qrUrl} size={220} includeMargin />
-                  </div>
-                  <p className="qr-note">
-                    Scan this QR code to access vehicle communication options.
-                  </p>
-                </>
-              ) : (
-                <p className="state-message">Unable to load QR code.</p>
-              )}
+                  <p className="state-message state-message--error">{qrError}</p>
+                ) : qrToken ? (
+                  <>
+                    <p className="page-description">Your SmartCar QR</p>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
+                      <QRCodeCanvas value={qrUrl} size={200} includeMargin />
+                    </div>
+                  </>
+                ) : (
+                  <p className="state-message">Unable to load QR code.</p>
+                )}
             </section>
           </>
         )}
