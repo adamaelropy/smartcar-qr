@@ -32,8 +32,8 @@
   margin: 0;
   padding: 1rem 1rem 1.1rem;
   border: 1px solid var(--border);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  background: var(--surface-soft);
 }
 
 .auth-section legend {
@@ -72,6 +72,10 @@
   width: 100%;
   box-sizing: border-box;
   padding: 0.82rem 0.95rem;
+  background: var(--surface-strong);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
 }
 
 .auth-field input:focus {
