@@ -116,3 +116,21 @@ export async function fetchVehicleByQrToken(token) {
 
   return parseResponse(response);
 }
+
+export async function fetchMessages(token) {
+  const response = await fetch(buildApiUrl('/messages'), {
+    headers: authHeaders(token),
+  });
+
+  return parseResponse(response);
+}
+
+export async function sendAutoReply(token, threadId, mode = 'default') {
+  const response = await fetch(buildApiUrl('/messages/reply'), {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ threadId, mode }),
+  });
+
+  return parseResponse(response);
+}

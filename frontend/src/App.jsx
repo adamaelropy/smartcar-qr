@@ -7,7 +7,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import SignUp from "./pages/SignUp";
-import Services from "./pages/Services";
+import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
 import QR from "./pages/QR";
 import { fetchVehicleByQrToken } from "./services/api";
@@ -157,7 +157,7 @@ function App() {
         }
       >
         <Route path="/home" element={<Home />} />
-        <Route path="/services" element={<Services />} />
+        <Route path="/messages" element={<Messages />} />
         <Route path="/profile" element={<Profile />} />
       </Route>
 

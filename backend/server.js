@@ -7,6 +7,7 @@ const prisma = require("./db");
 const serviceRoutes = require("./routes/serviceRoutes");
 const authRoutes = require("./routes/auth.routes");
 const registrationRoutes = require("./routes/registration.routes");
+const messagesRoutes = require("./routes/messages.routes");
 const { authenticate } = require("./middleware/auth.middleware");
 
 const app = express();
@@ -71,9 +72,12 @@ app.use("/api/auth", authRoutes);
 app.use("/api/registration", registrationRoutes);
 
 // ==============================
-// Services Routes
+// Messages Routes
 // ==============================
 
+app.use("/api/messages", messagesRoutes);
+
+// ============================== 
 app.use("/api/services", serviceRoutes);
 
 // ==============================

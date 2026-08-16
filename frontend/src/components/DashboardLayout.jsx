@@ -1,6 +1,40 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+
+const notifications = [
+  {
+    id: 'relative-accident',
+    title: 'New message from Maya',
+    subtitle: 'Emergency alert',
+    thread: '/messages?thread=relative-accident',
+  },
+];
 
 function DashboardLayout() {
+  const navigate = useNavigate();
+  const [activeNotification, setActiveNotification] = useState(notifications[0]);
+
+  useEffect(() => {
+    if (!activeNotification) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setActiveNotification(null);
+    }, 5000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [activeNotification]);
+
+  const closeNotification = () => {
+    setActiveNotification(null);
+  };
+
+  const openNotification = () => {
+    if (activeNotification) {
+      closeNotification();
+      navigate(activeNotification.thread);
+    }
+  };
+
   return (
     <div className="dashboard-shell">
       <header className="dashboard-nav-wrap">
@@ -17,12 +51,12 @@ function DashboardLayout() {
               Home
             </NavLink>
             <NavLink
-              to="/services"
+              to="/messages"
               className={({ isActive }) =>
                 `dashboard-link ${isActive ? 'is-active' : ''}`
               }
             >
-              Services
+              Messages
             </NavLink>
             <NavLink
               to="/profile"
@@ -37,6 +71,27 @@ function DashboardLayout() {
       </header>
 
       <Outlet />
+
+      {activeNotification && (
+        <div className="message-toast" role="alert">
+          <div className="message-toast__content">
+            <span className="message-toast__badge">New</span>
+            <div>
+              <strong>{activeNotification.title}</strong>
+              <p>{activeNotification.subtitle}</p>
+            </div>
+          </div>
+
+          <div className="message-toast__actions">
+            <button type="button" onClick={openNotification}>
+              Open
+            </button>
+            <button type="button" className="message-toast__close" onClick={closeNotification}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
