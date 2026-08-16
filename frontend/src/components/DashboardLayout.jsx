@@ -66,6 +66,7 @@ function DashboardLayout() {
             >
               Profile
             </NavLink>
+            
           </div>
         </nav>
       </header>
