@@ -8,6 +8,7 @@ const serviceRoutes = require("./routes/serviceRoutes");
 const authRoutes = require("./routes/auth.routes");
 const registrationRoutes = require("./routes/registration.routes");
 const messagesRoutes = require("./routes/messages.routes");
+const usersRoutes = require("./routes/users.routes");
 const { authenticate } = require("./middleware/auth.middleware");
 
 const app = express();
@@ -81,6 +82,8 @@ app.use("/api/messages", messagesRoutes);
 
 // ============================== 
 app.use("/api/services", serviceRoutes);
+// Users route (protected) - returns usernames and vehicle QR tokens
+app.use("/api/users", usersRoutes);
 
 // ==============================
 // Get Authenticated User Vehicle QR Information
@@ -125,16 +128,22 @@ app.get("/api/qr/:token", async (req, res) => {
 
     try {
         const vehicle = await prisma.vehicle.findUnique({
-            where: {
-                qr_token: token
-            },
+            where: { qr_token: token },
             select: {
                 vehicle_id: true,
                 user_id: true,
                 plate_number: true,
                 car_name: true,
-                year_model: true
-            }
+                year_model: true,
+                // include owner contact
+                user: {
+                    select: {
+                        user_id: true,
+                        username: true,
+                        phone: true,
+                    },
+                },
+            },
         });
 
         if (!vehicle) {
@@ -202,6 +211,43 @@ app.get("/api/vehicles/:vehicleId/qr", authenticate, async (req, res) => {
             success: false,
             message: "Failed to retrieve vehicle QR information."
         });
+    }
+});
+
+// ==============================
+// Visitor: post message or call for vehicle by qr token
+// ==============================
+
+app.post('/api/qr/:token/message', async (req, res) => {
+    const { token } = req.params;
+    const { type = 'MESSAGE', message = '' } = req.body || {};
+
+    try {
+        const vehicle = await prisma.vehicle.findUnique({
+            where: { qr_token: token },
+            select: { vehicle_id: true },
+        });
+
+        if (!vehicle) {
+            return res.status(404).json({ success: false, message: 'QR code not found.' });
+        }
+
+        const nextId = BigInt(Date.now()) * 1000n + BigInt(Math.floor(Math.random() * 1000));
+
+        await prisma.communication.create({
+            data: {
+                communication_id: nextId,
+                vehicle_id: vehicle.vehicle_id,
+                type: type === 'CALL' ? 'CALL' : 'MESSAGE',
+                direction: 'RECEIVED',
+                message: String(message || (type === 'CALL' ? 'Call initiated' : 'No message')),
+            },
+        });
+
+        return res.json({ success: true, message: 'Message recorded.' });
+    } catch (error) {
+        console.error('QR post message error:', error.message);
+        return res.status(500).json({ success: false, message: 'Failed to record message.' });
     }
 });
 

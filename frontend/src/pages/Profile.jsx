@@ -510,6 +510,9 @@ function Profile() {
                     <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
                       <QRCodeCanvas value={qrUrl} size={200} includeMargin />
                     </div>
+                    <p style={{ textAlign: 'center', marginTop: 8 }}>
+                      <a href={qrUrl} target="_blank" rel="noopener noreferrer">{qrUrl}</a>
+                    </p>
                   </>
                 ) : (
                   <p className="state-message">Unable to load QR code.</p>

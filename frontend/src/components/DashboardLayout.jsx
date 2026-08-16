@@ -66,6 +66,14 @@ function DashboardLayout() {
             >
               Profile
             </NavLink>
+            <NavLink
+              to="/users"
+              className={({ isActive }) =>
+                `dashboard-link ${isActive ? 'is-active' : ''}`
+              }
+            >
+              Users
+            </NavLink>
             
           </div>
         </nav>
