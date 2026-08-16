@@ -39,7 +39,7 @@ async function getMessages(req, res) {
 
         const thread = {
             id: `vehicle-${vehicle.vehicle_id}`,
-            senderName: vehicle.car_name || "QR message center",
+            senderName: 'Unkown',
             role: "Automated contact",
             label: sortedMessages.some((item) => item.type === "CALL") ? "Calls and messages" : "Automated message",
             preview:
@@ -53,7 +53,12 @@ async function getMessages(req, res) {
                     })
                     : "Just now",
             unread: sortedMessages.filter((item) => item.direction === "RECEIVED").length,
-            blocked: false,
+            blocked: sortedMessages.some(
+                (item) =>
+                    item.message?.toLowerCase().includes('block') ||
+                    item.message?.toLowerCase().includes('blocked') ||
+                    item.message?.toLowerCase().includes('blocking'),
+            ),
             emergency: sortedMessages.some(
                 (item) =>
                     item.message?.toLowerCase().includes("accident") ||

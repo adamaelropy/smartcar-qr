@@ -9,6 +9,7 @@ import Register from "./pages/Register";
 import SignUp from "./pages/SignUp";
 import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
+import Users from "./pages/Users";
 import QR from "./pages/QR";
 import Landing from "./pages/Landing";
 import { fetchVehicleByQrToken } from "./services/api";
@@ -27,6 +28,10 @@ function ScannedQR() {
   const [vehicle, setVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [messageText, setMessageText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sentMessage, setSentMessage] = useState('');
+  const [messageMode, setMessageMode] = useState('auto');
 
   useEffect(() => {
     const fetchVehicle = async () => {
@@ -97,15 +102,132 @@ function ScannedQR() {
         </p>
 
         <div className="action-grid">
-          <button type="button">Message Owner</button>
-          <button type="button">Call Owner</button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  type="radio"
+                  name="messageMode"
+                  value="auto"
+                  checked={messageMode === 'auto'}
+                  onChange={() => setMessageMode('auto')}
+                />
+                Send automated message
+              </label>
+
+              <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  type="radio"
+                  name="messageMode"
+                  value="custom"
+                  checked={messageMode === 'custom'}
+                  onChange={() => setMessageMode('custom')}
+                />
+                Send custom message
+              </label>
+            </div>
+
+            {messageMode === 'custom' && (
+              <textarea
+                placeholder="Type a short message to the owner..."
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                rows={4}
+                style={{ minWidth: 320 }}
+              />
+            )}
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  const senderName = 'Unkown';
+                  const messageToSend =
+                    messageMode === 'auto'
+                      ? `Hello, you blocked my car in the parking please come and move it`
+                      : messageText;
+
+                  if (!messageToSend || !messageToSend.trim()) return;
+
+                  setSending(true);
+                  try {
+                    await fetch(`/api/qr/${encodeURIComponent(token)}/message`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ type: 'MESSAGE', message: messageToSend, senderName }),
+                    });
+                    setSentMessage('Message sent');
+                    setMessageText('');
+                  } catch (err) {
+                    setSentMessage('Failed to send message');
+                  } finally {
+                    setSending(false);
+                    setTimeout(() => setSentMessage(''), 3000);
+                  }
+                }}
+                disabled={sending}
+              >
+                {sending ? 'Sending…' : 'Send Message'}
+              </button>
+            </div>
+
+            {sentMessage && <p className="state-message">{sentMessage}</p>}
+          </div>
         </div>
 
         <h2>Emergency</h2>
 
         <div className="action-grid">
-          <button type="button">Message Relative</button>
-          <button type="button">Call Relative</button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <p className="page-description">Automatically notify the registered relative with your current location.</p>
+            <button
+              type="button"
+              onClick={async () => {
+                setSending(true);
+                setSentMessage('');
+
+                const getPosition = () =>
+                  new Promise((resolve, reject) => {
+                    if (!navigator.geolocation) return reject(new Error('Geolocation not supported'));
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => resolve(pos.coords),
+                      (err) => reject(err),
+                      { enableHighAccuracy: true, timeout: 10000 }
+                    );
+                  });
+
+                try {
+                  const coords = await getPosition();
+                  const lat = coords.latitude;
+                  const lng = coords.longitude;
+                  const mapLink = `https://maps.google.com/?q=${lat},${lng}`;
+                  const timestamp = new Date().toISOString();
+                  const visitorInfo = (navigator && navigator.userAgent) || 'visitor';
+                  const senderName = 'Unkown';
+                  const base = 'This vehicle got into an accident please head to this location asap';
+                  const message = `${base} ${mapLink} (reported at ${timestamp} by ${visitorInfo})`;
+
+                  await fetch(`/api/qr/${encodeURIComponent(token)}/message`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'EMERGENCY', message, location: { lat, lng }, timestamp, senderName }),
+                  });
+
+                  setSentMessage('Relative notified');
+                } catch (err) {
+                  console.error('Emergency notify failed', err);
+                  setSentMessage('Failed to get location or notify relative');
+                } finally {
+                  setSending(false);
+                  setTimeout(() => setSentMessage(''), 5000);
+                }
+              }}
+              disabled={sending}
+            >
+              {sending ? 'Notifying…' : 'Notify Relative'}
+            </button>
+            {sentMessage && <p className="state-message">{sentMessage}</p>}
+          </div>
         </div>
       </section>
     </main>
@@ -160,6 +282,7 @@ function App() {
         <Route path="/home" element={<Home />} />
         <Route path="/messages" element={<Messages />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/users" element={<Users />} />
       </Route>
 
       {/* Owner QR page */}
