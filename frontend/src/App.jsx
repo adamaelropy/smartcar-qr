@@ -10,6 +10,7 @@ import SignUp from "./pages/SignUp";
 import Services from "./pages/Services";
 import Profile from "./pages/Profile";
 import QR from "./pages/QR";
+import Landing from "./pages/Landing";
 import { fetchVehicleByQrToken } from "./services/api";
 import { useAuth } from "./context/AuthContext";
 
@@ -134,7 +135,7 @@ function App() {
   return (
     <Routes>
       {/* Public auth pages */}
-      <Route path="/" element={<RootRedirect />} />
+      <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
 

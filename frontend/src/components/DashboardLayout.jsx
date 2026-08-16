@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import ErrorBoundary from './ErrorBoundary';
 
 function DashboardLayout() {
   return (
@@ -32,11 +33,14 @@ function DashboardLayout() {
             >
               Profile
             </NavLink>
+            
           </div>
         </nav>
       </header>
 
-      <Outlet />
+      <ErrorBoundary>
+        <Outlet />
+      </ErrorBoundary>
     </div>
   );
 }
