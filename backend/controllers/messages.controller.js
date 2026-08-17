@@ -62,6 +62,7 @@ async function getMessages(req, res) {
                 direction: true,
                 source: true,
                 message: true,
+                read: true,
                 created_at: true,
                 vehicle: {
                     select: {
@@ -152,23 +153,10 @@ async function getMessages(req, res) {
         const threads = Array.from(groupMap.values()).map((group) => {
             const { isOwner, targetVehicleId, sourceKey, items, targetVehicle } = group;
             const last = items[items.length - 1];
-            const senderName = resolveSenderDisplayName(sourceKey, isOwner, targetVehicle);
-
-            // Compute unread count based on role
-            const unreadCount = items.filter((i) => {
-                if (isOwner) {
-                    return i.direction === 'RECEIVED';
-                } else {
-                    return i.direction === 'SENT';
-                }
-            }).length;
-
-            const isBlocked = items.some((i) => classifyMessage(i) === 'blocked');
-            const isEmergency = items.some((i) => classifyMessage(i) === 'emergency');
-
-            const threadId = isOwner
-                ? `vehicle-${targetVehicleId}-${encodeURIComponent(sourceKey)}`
-                : `thread-out-${targetVehicleId}-${encodeURIComponent(sourceKey)}`;
+            const senderName = displayNameForSource(sourceKey);
+            const unread = items.filter((i) => i.direction === 'RECEIVED' && !i.read).length;
+            const blocked = items.some((i) => classifyMessage(i) === 'blocked');
+            const emergency = items.some((i) => classifyMessage(i) === 'emergency');
 
             return {
                 id: threadId,
@@ -214,6 +202,72 @@ async function getMessages(req, res) {
     }
 }
 
+async function markThreadRead(req, res) {
+    const { threadId } = req.body || {};
+
+    if (!threadId) {
+        return res.status(400).json({ success: false, message: 'threadId is required' });
+    }
+
+    try {
+        const vehicle = await prisma.vehicle.findUnique({ where: { user_id: req.user.userId }, select: { vehicle_id: true } });
+        if (!vehicle) {
+            return res.status(404).json({ success: false, message: 'Vehicle not found for this user.' });
+        }
+
+        let source = null;
+        try {
+            const prefix = `vehicle-${vehicle.vehicle_id}-`;
+            if (threadId && threadId.startsWith(prefix)) {
+                const middle = threadId.slice(prefix.length);
+                try {
+                    source = decodeURIComponent(middle) || null;
+                } catch (e) {
+                    source = middle || null;
+                }
+            }
+        } catch (e) {
+            source = null;
+        }
+
+        if (!source) {
+            return res.status(400).json({ success: false, message: 'Invalid thread id' });
+        }
+
+        console.log('Marking thread read for vehicle:', vehicle.vehicle_id, 'source:', source);
+        // Use raw SQL to update read flag so we don't need to regenerate the Prisma client here
+                // Use parameterized raw query to safely pass values
+                let result = 0;
+                if (source === 'unknown') {
+                    // Some old rows use NULL for source; mark those as read as well
+                    result = await prisma.$executeRaw`
+                        UPDATE "Communication"
+                        SET "read" = true
+                        WHERE vehicle_id = ${vehicle.vehicle_id}
+                          AND (source IS NULL OR source = 'unknown')
+                          AND direction = 'RECEIVED'
+                          AND "read" = false
+                    `;
+                } else {
+                    result = await prisma.$executeRaw`
+                        UPDATE "Communication"
+                        SET "read" = true
+                        WHERE vehicle_id = ${vehicle.vehicle_id}
+                          AND source = ${source}
+                          AND direction = 'RECEIVED'
+                          AND "read" = false
+                    `;
+                }
+
+        console.log('raw update result (rows affected):', result);
+
+        return res.json({ success: true, threadId, updated: Number(result || 0) });
+    } catch (error) {
+        console.error('Mark thread read error:', error.message);
+        return res.status(500).json({ success: false, message: 'Failed to mark thread read.' });
+    }
+}
+
 async function sendAutoReply(req, res) {
     const { threadId, mode = "default", message: customMessage = null } = req.body || {};
 
@@ -226,7 +280,7 @@ async function sendAutoReply(req, res) {
 
     const replies = {
         emergency: "I am on my way and I am contacting the emergency services now.",
-        blocked: "Okay sorry, I am on my way!",
+        blocked: "Hey, sorry I am on my way!",
         default: "Thank you for reaching out. Your message has been received and an automated response has been sent.",
     };
 
@@ -251,37 +305,17 @@ async function sendAutoReply(req, res) {
         const myVehicleId = currentUser.vehicle?.vehicle_id || null;
         const mySource = myVehicleId ? `vehicle:${myVehicleId}` : (currentUser.username ? `user:${currentUser.username}` : `userId:${currentUser.user_id}`);
 
-        let targetVehicleId = myVehicleId;
-        let targetSource = null;
-        let direction = "SENT";
-
-        // Case 1: Owner replying in thread `vehicle-${myVehicleId}-${encodedSource}`
-        if (myVehicleId && threadId.startsWith(`vehicle-${myVehicleId}-`)) {
-            targetVehicleId = myVehicleId;
-            const encoded = threadId.slice(`vehicle-${myVehicleId}-`.length);
-            try {
-                targetSource = decodeURIComponent(encoded);
-            } catch {
-                targetSource = encoded;
-            }
-            direction = "SENT";
-        }
-        // Case 2: Visitor replying to a vehicle in thread `thread-out-${targetVehicleId}-${encodedSource}`
-        else if (threadId.startsWith('thread-out-')) {
-            const parts = threadId.split('-');
-            targetVehicleId = Number(parts[2]);
-            targetSource = mySource;
-            direction = "RECEIVED";
-        }
-        // Case 3: Fallback parsing
-        else if (threadId.startsWith('vehicle-')) {
-            const parts = threadId.split('-');
-            targetVehicleId = Number(parts[1]) || myVehicleId;
-            const encoded = parts.slice(2).join('-');
-            try {
-                targetSource = decodeURIComponent(encoded);
-            } catch {
-                targetSource = encoded;
+        // try to extract source from threadId so the reply is stored on the same thread
+        let source = null;
+        try {
+            const prefix = `vehicle-${vehicle.vehicle_id}-`;
+            if (threadId && threadId.startsWith(prefix)) {
+                const middle = threadId.slice(prefix.length);
+                try {
+                    source = decodeURIComponent(middle) || null;
+                } catch (e) {
+                    source = middle || null;
+                }
             }
             direction = (myVehicleId && targetVehicleId === myVehicleId) ? "SENT" : "RECEIVED";
         } else {
@@ -328,4 +362,5 @@ async function sendAutoReply(req, res) {
 module.exports = {
     getMessages,
     sendAutoReply,
+    markThreadRead,
 };

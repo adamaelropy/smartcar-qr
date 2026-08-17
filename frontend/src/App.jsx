@@ -11,7 +11,7 @@ import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
 import Users from "./pages/Users";
 import Landing from "./pages/Landing";
-import { fetchVehicleByQrToken } from "./services/api";
+import { fetchVehicleByQrToken, postQrMessage } from "./services/api";
 import { useAuth } from "./context/AuthContext";
 
 import "./App.css";
@@ -50,10 +50,8 @@ function ScannedQR() {
   const [error, setError] = useState("");
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
-  // Separate feedback state for each section
-  const [messageFeedback, setMessageFeedback] = useState('');
-  const [emergencyFeedback, setEmergencyFeedback] = useState('');
-  const [emergencySending, setEmergencySending] = useState(false);
+  const [sentMessage, setSentMessage] = useState('');
+  const [sendError, setSendError] = useState(false);
   const [messageMode, setMessageMode] = useState('auto');
   const [fromValue] = useState(() => getSenderIdentity(user));
 
@@ -198,16 +196,100 @@ function ScannedQR() {
   };
 
   return (
-    <main className="qr-scan-shell">
-      <section className="qr-scan-card">
-        {/* Vehicle Name */}
-        <h1 className="qr-scan-vehicle-name">{vehicle.car_name || 'Vehicle Owner'}</h1>
+    <main className="page-shell qr-scan-page">
+      <section className="surface-card qr-scan-card">
+        <p className="eyebrow">Scanned QR</p>
+        <h1>SmartCar QR</h1>
+        <h2>Contact Vehicle Owner</h2>
+        <p className="page-description">
+          Choose how you want to reach the vehicle owner or emergency contact.
+        </p>
 
-        {/* Messaging Section */}
-        <div className="scan-section">
-          <div className="scan-section__header">
-            <h3>Send Message to Owner</h3>
-            <p>Choose a quick preset or type a customized note.</p>
+        <div className="action-grid">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  type="radio"
+                  name="messageMode"
+                  value="auto"
+                  checked={messageMode === 'auto'}
+                  onChange={() => setMessageMode('auto')}
+                />
+                Send automated message
+              </label>
+
+              <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  type="radio"
+                  name="messageMode"
+                  value="custom"
+                  checked={messageMode === 'custom'}
+                  onChange={() => setMessageMode('custom')}
+                />
+                Send custom message
+              </label>
+            </div>
+
+            {messageMode === 'custom' && (
+              <textarea
+                placeholder="Type a short message to the owner..."
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                rows={4}
+                style={{ minWidth: 320 }}
+              />
+            )}
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  const senderName = (user && user.username) ? user.username : fromValue;
+                  const messageToSend =
+                    messageMode === 'auto'
+                      ? `Hello, you blocked my car in the parking please come and move it`
+                      : messageText;
+
+                  if (!messageToSend || !messageToSend.trim()) return;
+
+                  setSending(true);
+                  setSendError(false);
+                  try {
+                    const { ok, data } = await postQrMessage(
+                      token,
+                      { type: 'MESSAGE', message: messageToSend, senderName, from: fromValue },
+                      authToken,
+                    );
+
+                    if (ok) {
+                      setSentMessage('Message sent');
+                      setSendError(false);
+                      setMessageText('');
+                    } else {
+                      setSendError(true);
+                      setSentMessage(data?.message || 'Failed to send message');
+                    }
+                  } catch (err) {
+                    setSendError(true);
+                    setSentMessage('Failed to send message');
+                  } finally {
+                    setSending(false);
+                    setTimeout(() => {
+                      setSentMessage('');
+                      setSendError(false);
+                    }, 5000);
+                  }
+                }}
+                disabled={sending}
+              >
+                {sending ? 'Sending…' : 'Send Message'}
+              </button>
+            </div>
+
+            {sentMessage && (
+              <p className={`state-message${sendError ? ' state-message--error' : ''}`}>{sentMessage}</p>
+            )}
           </div>
 
           {/* Toggle buttons instead of radios */}
@@ -221,11 +303,61 @@ function ScannedQR() {
             </button>
             <button
               type="button"
-              className={`scan-toggle-btn ${messageMode === 'custom' ? 'is-active' : ''}`}
-              onClick={() => setMessageMode('custom')}
+              onClick={async () => {
+                setSending(true);
+                setSentMessage('');
+                setSendError(false);
+
+                const getPosition = () =>
+                  new Promise((resolve, reject) => {
+                    if (!navigator.geolocation) return reject(new Error('Geolocation not supported'));
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => resolve(pos.coords),
+                      (err) => reject(err),
+                      { enableHighAccuracy: true, timeout: 10000 }
+                    );
+                  });
+
+                try {
+                  const coords = await getPosition();
+                  const lat = coords.latitude;
+                  const lng = coords.longitude;
+                  const mapLink = `https://maps.google.com/?q=${lat},${lng}`;
+                  const timestamp = new Date().toISOString();
+                  const visitorInfo = (navigator && navigator.userAgent) || 'visitor';
+                  const senderName = (user && user.username) ? user.username : fromValue;
+                  const base = 'This vehicle got into an accident please head to this location asap';
+                  const message = `${base} ${mapLink} (reported at ${timestamp} by ${visitorInfo})`;
+
+                  const { ok, data } = await postQrMessage(
+                    token,
+                    { type: 'EMERGENCY', message, location: { lat, lng }, timestamp, senderName, from: fromValue },
+                    authToken,
+                  );
+
+                  if (ok) {
+                    setSendError(false);
+                    setSentMessage('Message recorded for vehicle owner');
+                  } else {
+                    setSendError(true);
+                    setSentMessage(data?.message || 'Failed to notify vehicle owner');
+                  }
+                } catch (err) {
+                  console.error('Emergency notify failed', err);
+                  setSendError(true);
+                  setSentMessage('Failed to get location or notify vehicle owner');
+                } finally {
+                  setSending(false);
+                  setTimeout(() => setSentMessage(''), 5000);
+                }
+              }}
+              disabled={sending}
             >
               Custom Message
             </button>
+            {sentMessage && (
+              <p className={`state-message${sendError ? ' state-message--error' : ''}`}>{sentMessage}</p>
+            )}
           </div>
 
           {messageMode === 'custom' && (

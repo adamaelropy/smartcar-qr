@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { fetchMessages, sendAutoReply } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -71,11 +71,48 @@ function Messages() {
     [selectedThreadId, threads],
   );
 
+  const messagesListRef = useRef(null);
+  const replyPanelRef = useRef(null);
+
+  useEffect(() => {
+    // scroll conversation to bottom when selected thread or its messages change
+    const el = messagesListRef.current;
+    const replyEl = replyPanelRef.current;
+    if (el) {
+      // allow render to complete
+      setTimeout(() => {
+        const replyHeight = replyEl ? replyEl.offsetHeight : 0;
+        // leave extra space equal to reply panel so last message isn't hidden
+        el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight - replyHeight + 8);
+      }, 50);
+    }
+  }, [selectedThreadId, selectedThread?.messages?.length]);
+
+  useEffect(() => {
+    if (!selectedThreadId) return;
+
+    setThreads((currentThreads) =>
+      currentThreads.map((thread) => (thread.id === selectedThreadId ? { ...thread, unread: 0 } : thread)),
+    );
+
+    // mark thread read on the server so subsequent polls reflect the change
+    (async () => {
+      try {
+        if (token && selectedThreadId) {
+          const { ok } = await (await import('../services/api')).markThreadRead(token, selectedThreadId);
+          // no-op if not ok; local UI already updated
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
+  }, [selectedThreadId]);
+
   const handleAutoReply = async () => {
     if (!selectedThread || !token || sendingReply) return;
 
     const safeMessage = selectedThread.blocked
-      ? 'Okay sorry, I am on my way!'
+      ? 'Hey, sorry I am on my way!'
       : selectedThread.emergency
         ? 'I am on my way and I am contacting the emergency services now.'
         : 'Thank you for reaching out. Your message has been received.';
@@ -99,6 +136,41 @@ function Messages() {
                       sender: 'me',
                       text: data.message || safeMessage,
                       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    },
+                  ],
+                }
+              : thread,
+          ),
+        );
+      }
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
+  const handleEmergencyReply = async () => {
+    if (!selectedThread || !token || sendingReply) return;
+
+    const safeEmergency = 'I am on my way and I am contacting the emergency services now.';
+
+    try {
+      setSendingReply(true);
+      const { ok, data } = await sendAutoReply(token, selectedThread.id, 'emergency');
+
+      if (ok) {
+        setThreads((currentThreads) =>
+          currentThreads.map((thread) =>
+            thread.id === selectedThread.id
+              ? {
+                  ...thread,
+                  unread: 0,
+                  messages: [
+                    ...(thread.messages || []),
+                    {
+                      id: Date.now(),
+                      sender: 'me',
+                      text: data.message || safeEmergency,
+                      time: 'Now',
                     },
                   ],
                 }
@@ -137,9 +209,6 @@ function Messages() {
                 </div>
 
                 <div className="message-thread__meta">
-                  <span className={`tag ${thread.blocked ? 'tag-blocked' : thread.emergency ? 'tag-emergency' : 'tag-neutral'}`}>
-                    {thread.blocked ? 'Blocked Alert' : thread.emergency ? 'Emergency' : thread.role || 'Contact'}
-                  </span>
                   {thread.unread > 0 && <span className="message-count">{thread.unread}</span>}
                 </div>
 
@@ -151,20 +220,14 @@ function Messages() {
 
         {selectedThread ? (
           <section className="messages-chat-panel">
-            <div className="messages-chat-header">
+              <div className="messages-chat-header">
               <div>
                 <p className="eyebrow">Conversation</p>
                 <h2>{selectedThread.senderName}</h2>
               </div>
-              <div>
-                {selectedThread.blocked && <span className="tag tag-blocked">Blocked Vehicle</span>}
-                {selectedThread.emergency && !selectedThread.blocked && (
-                  <span className="tag tag-emergency">Emergency Alert</span>
-                )}
-              </div>
             </div>
 
-            <div className="messages-list">
+            <div className="messages-list" ref={messagesListRef}>
               {(selectedThread.messages || []).map((message) => (
                 <div
                   key={message.id}
@@ -176,20 +239,17 @@ function Messages() {
               ))}
             </div>
 
-            <div className="message-reply-panel">
+            <div className="message-reply-panel" ref={replyPanelRef}>
+              <button type="button" onClick={handleAutoReply} disabled={sendingReply}>
+                {sendingReply ? 'Sending...' : 'Send reply'}
+              </button>
               <button
                 type="button"
-                className="btn btn-primary"
-                onClick={handleAutoReply}
+                onClick={handleEmergencyReply}
                 disabled={sendingReply}
+                className="btn-danger"
               >
-                {sendingReply
-                  ? 'Sending response...'
-                  : selectedThread.blocked
-                    ? 'Reply: I am on my way'
-                    : selectedThread.emergency
-                      ? 'Send Emergency Response'
-                      : 'Send Automated Reply'}
+                {sendingReply ? 'Sending...' : 'Emergency reply'}
               </button>
             </div>
           </section>
