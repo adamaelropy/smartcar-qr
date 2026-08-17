@@ -22,62 +22,94 @@ async function getMessages(req, res) {
 
         const communications = await prisma.communication.findMany({
             where: { vehicle_id: vehicle.vehicle_id },
-            orderBy: { created_at: "desc" },
+            orderBy: { created_at: 'asc' },
             select: {
                 communication_id: true,
                 type: true,
                 direction: true,
+                source: true,
                 message: true,
                 created_at: true,
             },
         });
 
-        const sortedMessages = [...communications].sort(
-            (left, right) =>
-                new Date(left.created_at).getTime() - new Date(right.created_at).getTime(),
-        );
+        // Classify message category by text
+        function classifyMessage(msg) {
+            const text = (msg.message || '').toLowerCase();
+            if (text.includes('accident') || text.includes('emergency')) return 'emergency';
+            if (text.includes('block') || text.includes('blocked') || text.includes('blocking')) return 'blocked';
+            return 'message';
+        }
 
-        const thread = {
-            id: `vehicle-${vehicle.vehicle_id}`,
-            senderName: 'Unkown',
-            role: "Automated contact",
-            label: sortedMessages.some((item) => item.type === "CALL") ? "Calls and messages" : "Automated message",
-            preview:
-                sortedMessages[sortedMessages.length - 1]?.message ||
-                "No messages yet.",
-            time:
-                sortedMessages.length > 0
-                    ? new Date(sortedMessages[sortedMessages.length - 1].created_at).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                    })
-                    : "Just now",
-            unread: sortedMessages.filter((item) => item.direction === "RECEIVED").length,
-            blocked: sortedMessages.some(
-                (item) =>
-                    item.message?.toLowerCase().includes('block') ||
-                    item.message?.toLowerCase().includes('blocked') ||
-                    item.message?.toLowerCase().includes('blocking'),
-            ),
-            emergency: sortedMessages.some(
-                (item) =>
-                    item.message?.toLowerCase().includes("accident") ||
-                    item.message?.toLowerCase().includes("emergency"),
-            ),
-            messages: sortedMessages.map((item) => ({
-                id: Number(item.communication_id),
-                sender: item.direction === "RECEIVED" ? "them" : "me",
-                text: item.message || "No message content available.",
-                time: new Date(item.created_at).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                }),
-            })),
-        };
+        // Group communications into threads by source (sender) only
+        const groups = {};
+        communications.forEach((item) => {
+            const sourceKey = item.source || 'unknown';
+            if (!groups[sourceKey]) groups[sourceKey] = [];
+            groups[sourceKey].push(item);
+        });
+
+        // Resolve vehicle:<id> sources back to usernames where possible so threads show usernames
+        const sourceKeys = Object.keys(groups);
+        const vehicleIds = sourceKeys
+            .filter((s) => typeof s === 'string' && s.startsWith('vehicle:'))
+            .map((s) => Number(s.split(':')[1]))
+            .filter(Boolean);
+
+        const vehicleMap = {};
+        if (vehicleIds.length > 0) {
+            const vehicles = await prisma.vehicle.findMany({
+                where: { vehicle_id: { in: vehicleIds } },
+                select: { vehicle_id: true, user: { select: { username: true } } },
+            });
+
+            vehicles.forEach((v) => {
+                if (v && v.vehicle_id) {
+                    vehicleMap[`vehicle:${v.vehicle_id}`] = v.user && v.user.username ? v.user.username : `vehicle:${v.vehicle_id}`;
+                }
+            });
+        }
+
+        function displayNameForSource(src) {
+            if (!src || src === 'unknown') return 'Unknown';
+            if (src.startsWith('user:')) return src.split(':')[1] || src;
+            if (src.startsWith('vehicle:')) return vehicleMap[src] || src;
+            if (src.startsWith('anon:')) return 'Visitor';
+            return src;
+        }
+
+        const threads = Object.keys(groups).map((sourceKey) => {
+            const items = groups[sourceKey];
+            const last = items[items.length - 1];
+            const senderName = displayNameForSource(sourceKey);
+            const unread = items.filter((i) => i.direction === 'RECEIVED').length;
+            const blocked = items.some((i) => classifyMessage(i) === 'blocked');
+            const emergency = items.some((i) => classifyMessage(i) === 'emergency');
+
+            return {
+                id: `vehicle-${vehicle.vehicle_id}-${encodeURIComponent(sourceKey)}`,
+                senderName,
+                role: 'Automated contact',
+                label: senderName === 'Unknown' ? 'Automated message' : senderName,
+                preview: last?.message || 'No messages yet.',
+                time: last
+                    ? new Date(last.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : 'Just now',
+                unread,
+                blocked,
+                emergency,
+                messages: items.map((item) => ({
+                    id: Number(item.communication_id),
+                    sender: item.direction === 'RECEIVED' ? 'them' : 'me',
+                    text: item.message || 'No message content available.',
+                    time: new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                })),
+            };
+        });
 
         return res.json({
             success: true,
-            messages: sortedMessages.length > 0 ? [thread] : [],
+            messages: threads,
         });
     } catch (error) {
         console.error("Get messages error:", error.message);
@@ -120,8 +152,34 @@ async function sendAutoReply(req, res) {
             });
         }
 
-        const nextId =
-            BigInt(Date.now()) * 1000n + BigInt(Math.floor(Math.random() * 1000));
+        const nextId = BigInt(Date.now()) * 1000n + BigInt(Math.floor(Math.random() * 1000));
+
+        // try to extract source from threadId so the reply is stored on the same thread
+        let source = null;
+        try {
+            const possibleCategories = ['-emergency', '-blocked', '-message'];
+            let categorySuffix = null;
+
+            for (const s of possibleCategories) {
+                if (threadId.endsWith(s)) {
+                    categorySuffix = s;
+                    break;
+                }
+            }
+
+            if (categorySuffix) {
+                const prefix = `vehicle-${vehicle.vehicle_id}-`;
+                const middle = threadId.slice(prefix.length, threadId.length - categorySuffix.length);
+                // decodeURIComponent may throw if malformed, so guard
+                try {
+                    source = decodeURIComponent(middle) || null;
+                } catch (e) {
+                    source = middle || null;
+                }
+            }
+        } catch (e) {
+            source = null;
+        }
 
         await prisma.communication.create({
             data: {
@@ -130,6 +188,7 @@ async function sendAutoReply(req, res) {
                 type: "MESSAGE",
                 direction: "SENT",
                 message: reply,
+                source: source ? String(source) : null,
             },
         });
 
