@@ -3,6 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 const prisma = require("./db");
+const jwt = require('jsonwebtoken');
 
 const serviceRoutes = require("./routes/serviceRoutes");
 const authRoutes = require("./routes/auth.routes");
@@ -220,7 +221,7 @@ app.get("/api/vehicles/:vehicleId/qr", authenticate, async (req, res) => {
 
 app.post('/api/qr/:token/message', async (req, res) => {
     const { token } = req.params;
-    const { type = 'MESSAGE', message = '' } = req.body || {};
+    const { type = 'MESSAGE', message = '', from = null } = req.body || {};
 
     try {
         const vehicle = await prisma.vehicle.findUnique({
@@ -234,6 +235,95 @@ app.post('/api/qr/:token/message', async (req, res) => {
 
         const nextId = BigInt(Date.now()) * 1000n + BigInt(Math.floor(Math.random() * 1000));
 
+        // Attempt to derive source from Authorization header (if visitor is logged in)
+        let sourceValue = null;
+        try {
+            const authHeader = req.headers.authorization;
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                const tokenString = authHeader.slice(7);
+                const secret = process.env.JWT_SECRET;
+                if (secret) {
+                    try {
+                        const payload = jwt.verify(tokenString, secret);
+                        if (payload && (payload.username || payload.userId)) {
+                                    // Prefer sender's vehicle id when available so threads separate by sender vehicle
+                                    try {
+                                        const senderVehicle = await prisma.vehicle.findUnique({
+                                            where: { user_id: payload.userId },
+                                            select: { vehicle_id: true },
+                                        });
+
+                                        if (senderVehicle && senderVehicle.vehicle_id) {
+                                            sourceValue = `vehicle:${senderVehicle.vehicle_id}`;
+                                        } else {
+                                            sourceValue = payload.username ? `user:${payload.username}` : `userId:${payload.userId}`;
+                                        }
+                                    } catch (e) {
+                                        sourceValue = payload.username ? `user:${payload.username}` : `userId:${payload.userId}`;
+                                    }
+                                }
+                    } catch (e) {
+                        // ignore invalid token - fall back to explicit `from` body
+                    }
+                }
+            }
+
+            if (!sourceValue) {
+                // Prefer explicit `from` field, or fall back to senderName when provided.
+                const candidate = from || (req.body && req.body.senderName) || null;
+
+                if (candidate) {
+                    try {
+                        // Normalize candidate if it's prefixed like "user:username"
+                        let username = null;
+                        if (typeof candidate === 'string' && candidate.startsWith('user:')) {
+                            username = candidate.split(':')[1];
+                        } else if (typeof candidate === 'string' && /^[A-Za-z0-9_\-\.]+$/.test(candidate)) {
+                            // treat plain token-like values as possible username
+                            username = candidate;
+                        }
+
+                        if (username) {
+                            const user = await prisma.user.findUnique({ where: { username } });
+                            if (user) {
+                                const senderVehicle = await prisma.vehicle.findUnique({ where: { user_id: user.user_id }, select: { vehicle_id: true } });
+                                if (senderVehicle && senderVehicle.vehicle_id) {
+                                    sourceValue = `vehicle:${senderVehicle.vehicle_id}`;
+                                } else {
+                                    sourceValue = `user:${username}`;
+                                }
+                            } else {
+                                sourceValue = String(candidate);
+                            }
+                        } else {
+                            sourceValue = String(candidate);
+                        }
+                    } catch (e) {
+                        sourceValue = String(candidate);
+                    }
+                }
+            }
+            } catch (e) {
+                sourceValue = from ? String(from) : null;
+            }
+
+            // If still no explicit source (no auth, no `from`), create a pseudo-source
+            // based on a fingerprint of the request so different devices map to different threads.
+            if (!sourceValue) {
+                try {
+                    const crypto = require('crypto');
+                    const forwarded = req.headers['x-forwarded-for'] || req.connection && req.connection.remoteAddress || req.socket && req.socket.remoteAddress || '';
+                    const ua = req.headers['user-agent'] || '';
+                    const lang = req.headers['accept-language'] || '';
+                    const fingerprint = `${forwarded}|${ua}|${lang}`;
+                    const hash = crypto.createHash('sha256').update(fingerprint).digest('hex').slice(0, 8);
+                    sourceValue = `anon:${hash}`;
+                } catch (e) {
+                    // last resort: use literal string so DB gets non-null source
+                    sourceValue = `anon:unknown`;
+                }
+            }
+
         await prisma.communication.create({
             data: {
                 communication_id: nextId,
@@ -241,6 +331,7 @@ app.post('/api/qr/:token/message', async (req, res) => {
                 type: type === 'CALL' ? 'CALL' : 'MESSAGE',
                 direction: 'RECEIVED',
                 message: String(message || (type === 'CALL' ? 'Call initiated' : 'No message')),
+                source: sourceValue || null,
             },
         });
 

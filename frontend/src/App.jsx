@@ -32,6 +32,31 @@ function ScannedQR() {
   const [sending, setSending] = useState(false);
   const [sentMessage, setSentMessage] = useState('');
   const [messageMode, setMessageMode] = useState('auto');
+  const { token: authToken, user } = useAuth();
+  // determine a stable sender identity for this client: prefer logged-in username, else a persistent visitor id
+  let fromValue = null;
+  try {
+    if (user && user.username) {
+      fromValue = `user:${user.username}`;
+    } else {
+      const storedUser = localStorage.getItem('smartcar_user');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        if (parsed?.username) fromValue = `user:${parsed.username}`;
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  if (!fromValue) {
+    let visitor = localStorage.getItem('smartcar_visitor_id');
+    if (!visitor) {
+      visitor = `visitor:${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+      try { localStorage.setItem('smartcar_visitor_id', visitor); } catch (e) {}
+    }
+    fromValue = visitor;
+  }
 
   useEffect(() => {
     const fetchVehicle = async () => {
@@ -141,7 +166,7 @@ function ScannedQR() {
               <button
                 type="button"
                 onClick={async () => {
-                  const senderName = 'Unkown';
+                  const senderName = (user && user.username) ? user.username : fromValue;
                   const messageToSend =
                     messageMode === 'auto'
                       ? `Hello, you blocked my car in the parking please come and move it`
@@ -151,10 +176,13 @@ function ScannedQR() {
 
                   setSending(true);
                   try {
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (authToken) headers.Authorization = `Bearer ${authToken}`;
+
                     await fetch(`/api/qr/${encodeURIComponent(token)}/message`, {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ type: 'MESSAGE', message: messageToSend, senderName }),
+                      headers,
+                      body: JSON.stringify({ type: 'MESSAGE', message: messageToSend, senderName, from: fromValue }),
                     });
                     setSentMessage('Message sent');
                     setMessageText('');
@@ -203,14 +231,17 @@ function ScannedQR() {
                   const mapLink = `https://maps.google.com/?q=${lat},${lng}`;
                   const timestamp = new Date().toISOString();
                   const visitorInfo = (navigator && navigator.userAgent) || 'visitor';
-                  const senderName = 'Unkown';
+                  const senderName = (user && user.username) ? user.username : fromValue;
                   const base = 'This vehicle got into an accident please head to this location asap';
                   const message = `${base} ${mapLink} (reported at ${timestamp} by ${visitorInfo})`;
 
+                  const headers = { 'Content-Type': 'application/json' };
+                  if (authToken) headers.Authorization = `Bearer ${authToken}`;
+
                   await fetch(`/api/qr/${encodeURIComponent(token)}/message`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: 'EMERGENCY', message, location: { lat, lng }, timestamp, senderName }),
+                    headers,
+                    body: JSON.stringify({ type: 'EMERGENCY', message, location: { lat, lng }, timestamp, senderName, from: fromValue }),
                   });
 
                   setSentMessage('Relative notified');

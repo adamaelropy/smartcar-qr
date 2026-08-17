@@ -1,18 +1,13 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-
-const notifications = [
-  {
-    id: 'relative-accident',
-    title: 'New message from Maya',
-    subtitle: 'Emergency alert',
-    thread: '/messages?thread=relative-accident',
-  },
-];
+import { useAuth } from '../context/AuthContext';
+import { fetchMessages } from '../services/api';
 
 function DashboardLayout() {
   const navigate = useNavigate();
-  const [activeNotification, setActiveNotification] = useState(notifications[0]);
+  const { token, isAuthenticated } = useAuth();
+  const [activeNotification, setActiveNotification] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     if (!activeNotification) return undefined;
@@ -24,9 +19,49 @@ function DashboardLayout() {
     return () => window.clearTimeout(timeoutId);
   }, [activeNotification]);
 
-  const closeNotification = () => {
-    setActiveNotification(null);
-  };
+  // Poll for unread messages. Only show a toast when unread increases
+  useEffect(() => {
+    let mounted = true;
+    let lastUnread = 0;
+
+    async function loadUnread() {
+      if (!isAuthenticated || !token) return;
+      const { ok, data } = await fetchMessages(token);
+      if (!mounted || !ok) return;
+
+      const threads = Array.isArray(data?.messages) ? data.messages : [];
+      const totalUnread = threads.reduce((sum, t) => sum + (t.unread || 0), 0);
+
+      // first load: set baseline without notifying
+      if (lastUnread === 0) {
+        lastUnread = totalUnread;
+        setUnreadCount(totalUnread);
+        return;
+      }
+
+      if (totalUnread > lastUnread) {
+        setActiveNotification({
+          title: 'New message',
+          subtitle: `You have ${totalUnread - lastUnread} new message(s)`,
+          thread: '/messages',
+        });
+      }
+
+      lastUnread = totalUnread;
+      setUnreadCount(totalUnread);
+    }
+
+    // initial load + interval
+    loadUnread();
+    const id = window.setInterval(loadUnread, 5000);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(id);
+    };
+  }, [isAuthenticated, token]);
+
+  const closeNotification = () => setActiveNotification(null);
 
   const openNotification = () => {
     if (activeNotification) {
@@ -56,7 +91,7 @@ function DashboardLayout() {
                 `dashboard-link ${isActive ? 'is-active' : ''}`
               }
             >
-              Messages
+              Messages{unreadCount > 0 && <span className="message-count">{unreadCount}</span>}
             </NavLink>
             <NavLink
               to="/users"
