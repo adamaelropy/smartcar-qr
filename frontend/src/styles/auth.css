@@ -72,14 +72,62 @@
   width: 100%;
   box-sizing: border-box;
   padding: 0.82rem 0.95rem;
-  background: var(--surface-strong);
-  color: var(--text);
+  background: var(--surface-input);
+  color: var(--text-h);
   border: 1px solid var(--border);
   border-radius: 10px;
 }
 
+.auth-field input::placeholder {
+  color: var(--muted);
+}
+
 .auth-field input:focus {
   outline: none;
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.input-with-icon {
+  position: relative;
+}
+
+.input-with-icon input {
+  width: 100%;
+  box-sizing: border-box;
+  padding-right: 2.75rem;
+}
+
+.input-with-icon input[type='password']::-ms-reveal,
+.input-with-icon input[type='password']::-ms-clear {
+  display: none;
+}
+
+.input-with-icon input[type='password']::-webkit-textfield-decoration-container {
+  display: none;
+}
+
+.input-with-icon .icon-button {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.input-with-icon .icon-button svg {
+  display: block;
+}
+
+.input-with-icon .icon-button:hover {
+  color: var(--text-h);
 }
 
 .auth-button {

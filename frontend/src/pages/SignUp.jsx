@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { signup as signupRequest } from '../services/api';
+import PasswordInput from '../components/PasswordInput';
 import '../styles/auth.css';
 
 function SignUp() {
@@ -67,9 +68,8 @@ function SignUp() {
 
           <div className="auth-field">
             <label htmlFor="signup-password">Password *</label>
-            <input
+            <PasswordInput
               id="signup-password"
-              type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="new-password"
@@ -79,13 +79,14 @@ function SignUp() {
 
           <div className="auth-field">
             <label htmlFor="confirm-password">Confirm Password *</label>
-            <input
+            <PasswordInput
               id="confirm-password"
-              type="password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               autoComplete="new-password"
               required
+              label="Show confirm password"
+              hideLabel="Hide confirm password"
             />
           </div>
 
