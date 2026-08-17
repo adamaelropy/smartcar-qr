@@ -56,9 +56,6 @@ export default function AppearancePicker({ value, onChange }) {
           );
         })}
       </div>
-      <p className="appearance-picker__caption">
-        Select Light or Dark to change how SmartCar QR looks on this device.
-      </p>
     </div>
   );
 }

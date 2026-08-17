@@ -9,6 +9,7 @@ function Users() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [copyFeedback, setCopyFeedback] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -28,7 +29,6 @@ function Users() {
         }
 
         const data = await res.json();
-        // Support multiple shapes: { users: [...] } or array
         const list = Array.isArray(data) ? data : data.users || data.items || [];
         if (mounted) setUsers(list);
       } catch (err) {
@@ -44,73 +44,105 @@ function Users() {
     };
   }, [token]);
 
-  return (
-    <main className="page-shell">
-      <section className="surface-card">
-        <p className="eyebrow">Users</p>
-        <h1>Logged-in / Registered Users</h1>
+  const handleCopyLink = async (url, username) => {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopyFeedback(`Copied link for @${username}`);
+      setTimeout(() => setCopyFeedback(''), 2500);
+    } catch {
+      // fallback
+    }
+  };
 
-        {loading && <p className="state-message">Loading users…</p>}
+  return (
+    <main className="page-shell dashboard-page">
+      <section className="surface-card users-page">
+        <div className="profile-section-header">
+          <h1>Users</h1>
+        </div>
+
+        {copyFeedback && <p className="profile-success" role="status">{copyFeedback}</p>}
+
+        {loading && <p className="state-message">Loading registered users...</p>}
         {error && (
-          <p className="state-message state-message--error">{error}</p>
+          <p className="state-message state-message--error" role="alert">{error}</p>
         )}
 
         {!loading && !error && (
-          <div className="users-list">
+          <div className="users-list-wrapper">
             {users.length === 0 ? (
-              <p className="state-message">No users found.</p>
+              <p className="state-message">No registered users found.</p>
             ) : (
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              <div className="users-grid">
                 {users.map((u, i) => {
-                  const username = u.username || u.user?.username || u.name || u.email || `user-${i}`;
+                  const username = u.username || u.user?.username || u.name || `user-${i}`;
+                  const email = u.email || u.user?.email || '';
                   const qrToken = u.vehicle?.qr_token || u.qr_token || u.token || null;
                   const qrLink = qrToken ? `${window.location.origin}/qr/${qrToken}` : '';
+                  const initial = username.charAt(0).toUpperCase() || 'U';
 
                   return (
-                    <li
-                      key={i}
-                      className="service-card"
-                      style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}
-                    >
-                      <div style={{ flex: '0 0 200px' }}>
-                        <strong>{username}</strong>
+                    <article key={u.user_id || i} className="user-card">
+                      <div className="user-card__header">
+                        <div className="user-card__avatar">{initial}</div>
+                        <div className="user-card__details">
+                          <strong>{username}</strong>
+                          {email && <span>{email}</span>}
+                        </div>
                       </div>
 
-                      <div style={{ width: 80, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {qrToken ? (
-                          <QRCodeCanvas value={qrLink} size={64} includeMargin={false} />
-                        ) : (
-                          <div style={{ width: 64, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface)', borderRadius: 6 }}>
-                            <span style={{ color: 'var(--muted)', fontSize: 12 }}>No QR</span>
-                          </div>
-                        )}
+                      <div className="user-card__body">
+                        <div className="user-card__qr-box">
+                          {qrToken ? (
+                            <QRCodeCanvas value={qrLink} size={56} includeMargin={false} />
+                          ) : (
+                            <div style={{ width: 56, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-input)', borderRadius: 4 }}>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>No QR</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="user-card__qr-info">
+                          <span className="user-card__qr-badge">
+                            {qrToken ? 'Vehicle QR Active' : 'No Vehicle Linked'}
+                          </span>
+                          <span className="user-card__link-text" title={qrLink || 'No link'}>
+                            {qrLink ? qrLink.replace(/^https?:\/\//, '') : 'Not available'}
+                          </span>
+                        </div>
                       </div>
 
-                      <div style={{ flex: 1 }}>
+                      <div className="user-card__footer">
                         {qrLink ? (
-                          <a
-                            href={qrLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              display: 'inline-block',
-                              fontSize: 13,
-                              lineHeight: '1.2',
-                              maxWidth: 420,
-                              color: 'var(--accent)',
-                              wordBreak: 'break-all',
-                            }}
-                          >
-                            {qrLink}
-                          </a>
+                          <>
+                            <a
+                              href={qrLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-primary btn-sm"
+                              style={{ flex: 1 }}
+                            >
+                              Open QR
+                            </a>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => handleCopyLink(qrLink, username)}
+                            >
+                              Copy
+                            </button>
+                          </>
                         ) : (
-                          <span className="state-message">No QR link</span>
+                          <span className="btn btn-outline btn-sm" style={{ flex: 1, opacity: 0.5, cursor: 'default' }}>
+                            Unregistered
+                          </span>
                         )}
                       </div>
-                    </li>
+                    </article>
                   );
                 })}
-              </ul>
+              </div>
             )}
           </div>
         )}

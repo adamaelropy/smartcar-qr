@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useAuth } from '../context/AuthContext';
@@ -30,19 +30,26 @@ function buildFormFromProfile(profile) {
   };
 }
 
-function EditField({ id, label, type = 'text', value, onChange }) {
+function EditField({ id, label, type = 'text', value, onChange, placeholder = '' }) {
   return (
     <label className="profile-edit-field" htmlFor={id}>
       <span className="profile-label">{label}</span>
-      <input id={id} className="profile-input" type={type} value={value} onChange={(e) => onChange(e.target.value)} />
+      <input
+        id={id}
+        className="profile-input"
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
     </label>
   );
 }
 
 const HELP_TOPICS = [
-  { id: 'register', label: 'How do I register a vehicle?', category: 'Getting started' },
-  { id: 'qr', label: 'How do I download my QR?', category: 'Vehicle & QR' },
-  { id: 'bug', label: 'How do I report a bug?', category: 'Support' },
+  { id: 'register', label: 'How do I register a vehicle?', category: 'GETTING STARTED' },
+  { id: 'qr', label: 'How do I download my QR?', category: 'VEHICLE & QR' },
+  { id: 'bug', label: 'How do I report a bug?', category: 'SUPPORT' },
 ];
 
 export default function Profile() {
@@ -54,19 +61,18 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [qrToken, setQrToken] = useState('');
-  const [qrError, setQrError] = useState('');
   const [showQrModal, setShowQrModal] = useState(false);
   const [editingSection, setEditingSection] = useState(null);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [saving, setSaving] = useState(false);
+
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
 
-  // UI state
+  // UI section state
   const [section, setSection] = useState('account');
   const [helpMessages, setHelpMessages] = useState([]);
   const [helpInput, setHelpInput] = useState('');
@@ -78,53 +84,60 @@ export default function Profile() {
     applyTheme(theme);
   }, [theme]);
 
-  const loadQrForVehicle = useCallback(
-    async (hasVehicle) => {
-      if (!token || !hasVehicle) {
-        setQrToken('');
-        setQrError('');
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadData() {
+      if (!token) {
+        if (isMounted) setLoading(false);
         return;
       }
-      const qrResponse = await fetchMyVehicleQr(token);
-      if (qrResponse.ok) {
-        setQrToken(qrResponse.data?.vehicle?.qr_token || '');
-        setQrError('');
-      } else if (qrResponse.status === 404) {
-        setQrToken('');
-        setQrError('');
-      } else {
-        setQrToken('');
-        setQrError(qrResponse.data?.message || 'Unable to load QR code.');
+      if (isMounted) {
+        setLoading(true);
+        setError('');
       }
-    },
-    [token]
-  );
-
-  const loadProfile = useCallback(async () => {
-    if (!token) {
-      setLoading(false);
-      return;
+      try {
+        const { ok, data } = await fetchMyProfile(token);
+        if (!isMounted) return;
+        if (!ok) throw new Error(data?.message || 'Unable to load profile.');
+        const nextProfile = { user: data.user, emergencyContact: data.emergencyContact, vehicle: data.vehicle };
+        setProfile(nextProfile);
+        // Set QR token directly if returned on vehicle, otherwise fetch from QR endpoint
+        if (data.vehicle) {
+          if (data.vehicle.qr_token) {
+            setQrToken(data.vehicle.qr_token);
+          } else {
+            const qrRes = await fetchMyVehicleQr(token);
+            if (isMounted && qrRes.ok) {
+              setQrToken(qrRes.data?.vehicle?.qr_token || '');
+            }
+          }
+        }
+      } catch (e) {
+        if (isMounted) setError(e?.message || 'Unable to load profile.');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
     }
-    setLoading(true);
-    setError('');
-    try {
-      const { ok, data } = await fetchMyProfile(token);
-      if (!ok) throw new Error(data?.message || 'Unable to load profile.');
-      const nextProfile = { user: data.user, emergencyContact: data.emergencyContact, vehicle: data.vehicle };
-      setProfile(nextProfile);
-      await loadQrForVehicle(Boolean(nextProfile.vehicle));
-    } catch (e) {
-      setError(e?.message || 'Unable to load profile.');
-    } finally {
-      setLoading(false);
-    }
-  }, [token, loadQrForVehicle]);
 
-  useEffect(() => { loadProfile(); }, [loadProfile]);
+    loadData();
 
-  const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
 
-  const cancelEditing = () => { setForm(null); setEditingSection(null); setSaveError(''); };
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
+  const cancelEditing = () => {
+    setForm(null);
+    setEditingSection(null);
+    setSaveError('');
+  };
+
   const startEditing = (sec) => {
     setForm(buildFormFromProfile(profile));
     setEditingSection(sec);
@@ -132,64 +145,102 @@ export default function Profile() {
     setSaveError('');
     setSuccessMessage('');
   };
+
   const handleSectionChange = (nextSection) => {
     if (editingSection) cancelEditing();
     setSection(nextSection);
   };
-  const updateFormField = (field, value) => setForm((c) => ({ ...c, [field]: value }));
+
+  const updateFormField = (field, value) => {
+    setForm((c) => ({ ...c, [field]: value }));
+  };
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
-    setSaving(true); setSaveError(''); setSuccessMessage('');
+    setSaving(true);
+    setSaveError('');
+    setSuccessMessage('');
     try {
       const { ok, data } = await updateMyProfile(token, form);
       if (!ok) throw new Error(data?.errors?.join(' ') || data?.message || 'Unable to update profile.');
       const nextProfile = { user: data.user, emergencyContact: data.emergencyContact, vehicle: data.vehicle };
-      setProfile(nextProfile); setForm(null); setEditingSection(null);
-      setSuccessMessage(data.message || 'Profile updated');
+      setProfile(nextProfile);
+      if (data.vehicle?.qr_token) {
+        setQrToken(data.vehicle.qr_token);
+      }
+      setForm(null);
+      setEditingSection(null);
+      setSuccessMessage(data.message || 'Profile updated successfully.');
       updateStoredUser({ user_id: data.user.user_id, username: data.user.username });
-      await loadQrForVehicle(Boolean(nextProfile.vehicle));
-    } catch (err) { setSaveError(err?.message || 'Unable to update'); }
-    finally { setSaving(false); }
+    } catch (err) {
+      setSaveError(err?.message || 'Unable to update profile.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const openChangePassword = () => { setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); setIsChangingPassword(true); setEditingSection(null); };
-  const cancelChangePassword = () => { setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); setIsChangingPassword(false); };
-  const updatePasswordField = (field, value) => setPasswordForm((c) => ({ ...c, [field]: value }));
+  const updatePasswordField = (field, value) => {
+    setPasswordForm((c) => ({ ...c, [field]: value }));
+  };
+
   const handleChangePassword = async (e) => {
-    e.preventDefault(); setPasswordSaving(true); setPasswordError(''); setPasswordSuccess('');
+    e.preventDefault();
+    setPasswordSaving(true);
+    setPasswordError('');
+    setPasswordSuccess('');
     try {
       const { ok, data } = await changePasswordRequest(token, passwordForm);
       if (!ok) throw new Error(data?.errors?.join(' ') || data?.message || 'Unable to change password.');
-      setPasswordSuccess(data.message || 'Password changed'); setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    } catch (err) { setPasswordError(err?.message || 'Unable to change password.'); }
-    finally { setPasswordSaving(false); }
+      setPasswordSuccess(data.message || 'Password changed successfully.');
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err) {
+      setPasswordError(err?.message || 'Unable to change password.');
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
-  if (loading) return (<main className="page-shell dashboard-page"><section className="home-card profile-card"><p className="state-message">Loading profile...</p></section></main>);
-  if (error || !profile) return (<main className="page-shell dashboard-page"><section className="home-card profile-card"><p className="state-message state-message--error">{error || 'Unable to load profile.'}</p></section></main>);
-
-  const { user, emergencyContact, vehicle } = profile;
   const qrUrl = qrToken ? `${window.location.origin}/qr/${qrToken}` : '';
 
   const openQrModal = () => setShowQrModal(true);
   const closeQrModal = () => setShowQrModal(false);
+
   const downloadQr = (id = 'profile-qr-field') => {
     try {
-      const canvas = document.getElementById(id); if (!canvas) return; const url = canvas.toDataURL('image/png'); const a = document.createElement('a'); a.href = url; a.download = 'smartcar-qr.png'; document.body.appendChild(a); a.click(); a.remove();
-    } catch {}
+      const canvas = document.getElementById(id);
+      if (!canvas) return;
+      const url = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `smartcar-qr-${profile?.user?.username || 'vehicle'}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      // ignore download error
+    }
   };
-  const copyQrLink = async () => { if (!qrUrl) return; try { await navigator.clipboard.writeText(qrUrl); setSuccessMessage('QR link copied'); setTimeout(()=>setSuccessMessage(''),2000); } catch {} };
+
+  const copyQrLink = async () => {
+    if (!qrUrl) return;
+    try {
+      await navigator.clipboard.writeText(qrUrl);
+      setSuccessMessage('QR link copied to clipboard!');
+      setTimeout(() => setSuccessMessage(''), 2500);
+    } catch {
+      // fallback
+    }
+  };
 
   const handleHelpQuery = (q) => {
     const text = String(q).toLowerCase();
-    let reply = "I'm here to help. Try selecting a topic or contact support@example.com.";
+    let reply = "I'm here to help. Try selecting a topic or contact support@smartcar-qr.app.";
     if (text.includes('register') || text.includes('vehicle')) {
-      reply = 'To register a vehicle, open Register from the menu and complete your personal, emergency contact, and vehicle details.';
+      reply = 'To register a vehicle, complete your personal, emergency contact, and vehicle details on the registration page.';
     } else if (text.includes('qr') || text.includes('scan') || text.includes('download')) {
-      reply = 'Go to Profile > My QR to view, download, or copy your QR link. Anyone who scans it can reach you through SmartCar QR.';
+      reply = 'Open the Users page to view, download, or copy your QR link. Anyone who scans it can reach you securely through SmartCar QR.';
     } else if (text.includes('issue') || text.includes('bug') || text.includes('report')) {
-      reply = 'Email support@example.com with a short description, screenshots if possible, and the steps to reproduce the issue.';
+      reply = 'Please email support@smartcar-qr.app with a short description and steps to reproduce any issue.';
     }
 
     setHelpMessages((h) => [...h, { from: 'bot', text: reply }]);
@@ -207,108 +258,173 @@ export default function Profile() {
     setHelpInput('');
   };
 
+  if (loading) {
+    return (
+      <main className="page-shell dashboard-page">
+        <section className="home-card profile-card">
+          <p className="state-message">Loading profile...</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <main className="page-shell dashboard-page">
+        <section className="home-card profile-card">
+          <p className="state-message state-message--error">{error || 'Unable to load profile.'}</p>
+        </section>
+      </main>
+    );
+  }
+
+  const { user, emergencyContact, vehicle } = profile;
 
   return (
     <main className="page-shell dashboard-page">
-      <section className="home-card profile-card" style={{ gap: 20 }}>
+      <section className="home-card profile-card">
         <div className="profile-header">
           <div className="profile-title-with-thumb">
-            <div>
-              <p className="eyebrow">Profile</p>
-              <h1 style={{ margin: 0 }}>My Profile</h1>
-            </div>
-            {vehicle && qrToken && (
-              <a onClick={openQrModal} className="profile-qr-thumb" role="button" aria-label="Open my QR">
-                <QRCodeCanvas id="profile-qr-thumb-canvas" value={qrUrl} size={56} includeMargin={false} />
-              </a>
+            <h1>My Profile</h1>
+            {qrToken && (
+              <button
+                type="button"
+                className="profile-qr-thumb"
+                onClick={openQrModal}
+                title="Click to view enlarged QR code"
+                aria-label="View enlarged QR code"
+              >
+                <QRCodeCanvas
+                  value={`${window.location.origin}/qr/${qrToken}`}
+                  size={32}
+                  marginSize={0}
+                />
+              </button>
             )}
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 20 }}>
-          <aside style={{ width: 280 }}>
-            <div style={{ padding: 16 }}>
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <div style={{ width: 56, height: 56, borderRadius: 28, background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="8" r="3" stroke="#1e40af" strokeWidth="1.2"/><path d="M4 20c0-3 4-4.5 8-4.5s8 1.5 8 4.5" stroke="#1e40af" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </div>
-                <div>
-                  <div style={{ fontWeight: 700 }}>{user?.name || user?.username}</div>
-                  <div style={{ color: '#6b7280', fontSize: 13 }}>{user?.username}</div>
-                </div>
+        <div className="profile-layout">
+          {/* Sidebar Navigation */}
+          <aside className="profile-sidebar">
+            <div className="profile-user-badge">
+              <div className="profile-avatar-circle" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+                </svg>
               </div>
-
-              <nav style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }} aria-label="Profile sections">
-                {[['account','Account'],['personal','Personal details'],['myqr','My QR'],['password','Password & security'],['appearance','Appearance'],['help','Help'],['about','About']].map(([id,label])=> (
-                  <button key={id} type="button" onClick={() => handleSectionChange(id)} className={`dashboard-link ${section===id?'is-active':''}`} style={{ textAlign: 'left', padding: '8px 12px', borderRadius: 8, background: section===id? '#eef2ff':'transparent' }}>{label}</button>
-                ))}
-                <button type="button" onClick={handleLogout} style={{ marginTop: 12, background: '#fee2e2', borderRadius: 8, padding: '8px 12px' }}>Log out</button>
-              </nav>
+              <div>
+                <strong style={{ display: 'block', color: 'var(--text-h)', fontSize: '0.95rem' }}>
+                  {user?.name || user?.username}
+                </strong>
+                <span style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>@{user?.username}</span>
+              </div>
             </div>
+
+            <nav className="profile-nav" aria-label="Profile sections">
+              {[
+                ['account', 'Account Details'],
+                ['personal', 'Personal & Vehicle'],
+                ['password', 'Password & Security'],
+                ['appearance', 'Appearance'],
+                ['help', 'Help Center'],
+                ['about', 'About Application'],
+              ].map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => handleSectionChange(id)}
+                  className={`profile-nav-btn ${section === id ? 'is-active' : ''}`}
+                >
+                  {label}
+                </button>
+              ))}
+              <button type="button" onClick={handleLogout} className="profile-logout-btn">
+                Log Out
+              </button>
+            </nav>
           </aside>
 
-          <div style={{ flex: 1 }}>
+          {/* Main Content Area */}
+          <div className="profile-content">
             {successMessage && <p className="profile-success" role="status">{successMessage}</p>}
 
             {editingSection ? (
               <form className="profile-edit-form" onSubmit={handleSaveProfile}>
                 {editingSection === 'account' && (
-                  <section className="profile-section"><h2>Account</h2>
+                  <section className="profile-section">
+                    <div className="profile-section-header">
+                      <h2>Edit Account Details</h2>
+                    </div>
                     <div className="profile-edit-grid">
-                      <EditField id="fullName" label="Full Name" value={form.fullName} onChange={(v)=>updateFormField('fullName',v)} />
-                      <EditField id="username" label="Username" value={form.username} onChange={(v)=>updateFormField('username',v)} />
-                      <EditField id="email" label="Email" type="email" value={form.email} onChange={(v)=>updateFormField('email',v)} />
+                      <EditField id="fullName" label="Full Name" value={form.fullName} onChange={(v) => updateFormField('fullName', v)} />
+                      <EditField id="username" label="Username" value={form.username} onChange={(v) => updateFormField('username', v)} />
+                      <EditField id="email" label="Email" type="email" value={form.email} onChange={(v) => updateFormField('email', v)} />
                     </div>
                   </section>
                 )}
 
                 {editingSection === 'personal' && (
-                  <section className="profile-section"><h2>Personal details</h2>
+                  <section className="profile-section">
+                    <div className="profile-section-header">
+                      <h2>Edit Personal &amp; Vehicle Details</h2>
+                    </div>
+                    
+                    <h3 style={{ fontSize: '1rem', marginTop: '0.5rem', color: 'var(--text-h)' }}>Personal Information</h3>
                     <div className="profile-edit-grid">
-                      <div>
-                        <h3>Personal</h3>
-                        <EditField id="age" label="Age" type="number" value={String(form.age)} onChange={(v)=>updateFormField('age',v)} />
-                        <EditField id="phone" label="Phone" value={form.phone} onChange={(v)=>updateFormField('phone',v)} />
-                      </div>
-                      <div>
-                        <h3>Relative</h3>
-                        <EditField id="relativeName" label="Name" value={form.relativeName} onChange={(v)=>updateFormField('relativeName',v)} />
-                        <EditField id="relativePhone" label="Phone" value={form.relativePhone} onChange={(v)=>updateFormField('relativePhone',v)} />
-                        <EditField id="relationship" label="Relationship" value={form.relationship} onChange={(v)=>updateFormField('relationship',v)} />
-                      </div>
-                      <div>
-                        <h3>Vehicle</h3>
-                        <EditField id="plateNumber" label="Plate Number" value={form.plateNumber} onChange={(v)=>updateFormField('plateNumber',v)} />
-                        <EditField id="carName" label="Car Name" value={form.carName} onChange={(v)=>updateFormField('carName',v)} />
-                        <EditField id="yearModel" label="Year Model" type="number" value={String(form.yearModel)} onChange={(v)=>updateFormField('yearModel',v)} />
-                      </div>
+                      <EditField id="age" label="Age" type="number" value={String(form.age)} onChange={(v) => updateFormField('age', v)} />
+                      <EditField id="phone" label="Phone Number" value={form.phone} onChange={(v) => updateFormField('phone', v)} />
+                    </div>
+
+                    <h3 style={{ fontSize: '1rem', marginTop: '1rem', color: 'var(--text-h)' }}>Emergency Contact</h3>
+                    <div className="profile-edit-grid">
+                      <EditField id="relativeName" label="Relative Name" value={form.relativeName} onChange={(v) => updateFormField('relativeName', v)} />
+                      <EditField id="relativePhone" label="Relative Phone" value={form.relativePhone} onChange={(v) => updateFormField('relativePhone', v)} />
+                      <EditField id="relationship" label="Relationship" value={form.relationship} onChange={(v) => updateFormField('relationship', v)} placeholder="e.g. Spouse, Sibling" />
+                    </div>
+
+                    <h3 style={{ fontSize: '1rem', marginTop: '1rem', color: 'var(--text-h)' }}>Vehicle Information</h3>
+                    <div className="profile-edit-grid">
+                      <EditField id="plateNumber" label="Plate Number" value={form.plateNumber} onChange={(v) => updateFormField('plateNumber', v)} />
+                      <EditField id="carName" label="Car Model / Name" value={form.carName} onChange={(v) => updateFormField('carName', v)} />
+                      <EditField id="yearModel" label="Year Model" type="number" value={String(form.yearModel)} onChange={(v) => updateFormField('yearModel', v)} />
                     </div>
                   </section>
                 )}
 
                 {saveError && <p className="state-message state-message--error">{saveError}</p>}
-                <div className="profile-form-actions"><button type="submit" className="profile-save-button" disabled={saving}>{saving?'Saving...':'Save Changes'}</button><button type="button" className="profile-cancel-button" onClick={cancelEditing}>Cancel</button></div>
+                <div className="profile-form-actions">
+                  <button type="submit" className="btn btn-primary" disabled={saving}>
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={cancelEditing}>
+                    Cancel
+                  </button>
+                </div>
               </form>
             ) : (
               <>
                 {section === 'account' && (
                   <section className="profile-section">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h2 style={{ color: '#0f172a' }}>Account</h2>
-                      <button type="button" className="profile-edit-button" onClick={() => startEditing('account')}>Edit</button>
+                    <div className="profile-section-header">
+                      <h2>Account Details</h2>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => startEditing('account')}>
+                        Edit Account
+                      </button>
                     </div>
                     <div className="profile-grid">
                       <div className="profile-row">
-                        <div className="profile-label">Full name</div>
-                        <div className="profile-value">{user?.name ?? '-'}</div>
+                        <span className="profile-label">Full Name</span>
+                        <span className="profile-value">{user?.name || '-'}</span>
                       </div>
                       <div className="profile-row">
-                        <div className="profile-label">Username</div>
-                        <div className="profile-value">{user?.username ?? '-'}</div>
+                        <span className="profile-label">Username</span>
+                        <span className="profile-value">{user?.username || '-'}</span>
                       </div>
                       <div className="profile-row">
-                        <div className="profile-label">Email</div>
-                        <div className="profile-value">{user?.email ?? '-'}</div>
+                        <span className="profile-label">Email</span>
+                        <span className="profile-value">{user?.email || '-'}</span>
                       </div>
                     </div>
                   </section>
@@ -316,23 +432,81 @@ export default function Profile() {
 
                 {section === 'personal' && (
                   <section className="profile-section">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h2 style={{ color: '#0f172a' }}>Personal details</h2>
-                      <button type="button" className="profile-edit-button" onClick={() => startEditing('personal')}>Edit</button>
+                    <div className="profile-section-header">
+                      <h2>Personal &amp; Vehicle Details</h2>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => startEditing('personal')}>
+                        Edit Details
+                      </button>
                     </div>
-                    <div className="profile-grid">
-                      <div className="profile-row">
-                        <div className="profile-label">Personal</div>
-                        <div className="profile-value">Age: {user?.age ?? '-'} · Phone: {user?.phone ?? '-'}</div>
+
+                    <div className="profile-detail-group">
+                      <h3>Personal Details</h3>
+                      <div className="profile-grid">
+                        <div className="profile-row">
+                          <span className="profile-label">Full Name</span>
+                          <span className="profile-value">{user?.name || '-'}</span>
+                        </div>
+                        <div className="profile-row">
+                          <span className="profile-label">Username</span>
+                          <span className="profile-value">{user?.username || '-'}</span>
+                        </div>
+                        <div className="profile-row">
+                          <span className="profile-label">Age</span>
+                          <span className="profile-value">{user?.age ?? '-'}</span>
+                        </div>
+                        <div className="profile-row">
+                          <span className="profile-label">Email</span>
+                          <span className="profile-value">{user?.email || '-'}</span>
+                        </div>
+                        <div className="profile-row">
+                          <span className="profile-label">Phone</span>
+                          <span className="profile-value">{user?.phone || '-'}</span>
+                        </div>
                       </div>
-                      <div className="profile-row">
-                        <div className="profile-label">Emergency contact</div>
-                        <div className="profile-value">{emergencyContact?.relative_name ?? '-'} · {emergencyContact?.relative_phone ?? '-'} · {emergencyContact?.relationship ?? '-'}</div>
-                      </div>
-                      <div className="profile-row">
-                        <div className="profile-label">Vehicle</div>
-                        <div className="profile-value">{vehicle?.car_name || '-'} {vehicle?.plate_number ? `• ${vehicle?.plate_number}` : ''}</div>
-                      </div>
+                    </div>
+
+                    <div className="profile-detail-group">
+                      <h3>Emergency Contact</h3>
+                      {emergencyContact ? (
+                        <div className="profile-grid">
+                          <div className="profile-row">
+                            <span className="profile-label">Name</span>
+                            <span className="profile-value">{emergencyContact.relative_name || '-'}</span>
+                          </div>
+                          <div className="profile-row">
+                            <span className="profile-label">Phone</span>
+                            <span className="profile-value">{emergencyContact.relative_phone || '-'}</span>
+                          </div>
+                          <div className="profile-row">
+                            <span className="profile-label">Relationship</span>
+                            <span className="profile-value">{emergencyContact.relationship || '-'}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="state-message">No emergency contact registered.</p>
+                      )}
+                    </div>
+
+                    <div className="profile-detail-group">
+                      <h3>Vehicle Details</h3>
+                      {vehicle ? (
+                        <div className="profile-grid">
+                          <div className="profile-row">
+                            <span className="profile-label">Plate Number</span>
+                            <span className="profile-value">{vehicle.plate_number || '-'}</span>
+                          </div>
+                          <div className="profile-row">
+                            <span className="profile-label">Car Name</span>
+                            <span className="profile-value">{vehicle.car_name || '-'}</span>
+                          </div>
+                          <div className="profile-row">
+                            <span className="profile-label">Model Year</span>
+                            <span className="profile-value">{vehicle.year_model ?? '-'}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="state-message">No vehicle registered.</p>
+                      )}
                     </div>
                   </section>
                 )}
@@ -341,21 +515,41 @@ export default function Profile() {
 
             {!editingSection && section === 'myqr' && (
               <section className="profile-section">
-                <h2>My QR</h2>
-                <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
-                  <QRCodeCanvas id="profile-qr-field-main" value={qrUrl} size={240} includeMargin />
+                <div className="profile-section-header">
+                  <h2>My Vehicle QR Code</h2>
                 </div>
-                <p style={{ textAlign: 'center', marginTop: 12, wordBreak: 'break-all' }}><a href={qrUrl} target="_blank" rel="noopener noreferrer">{qrUrl}</a></p>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12 }}>
-                  <button className="profile-download-button" onClick={() => downloadQr('profile-qr-field-main')}>Download</button>
-                  <button className="profile-copy-button" onClick={copyQrLink}>Copy link</button>
+                <div className="profile-qr-panel">
+                  <div className="profile-qr-canvas-box">
+                    <QRCodeCanvas id="profile-qr-field-main" value={qrUrl} size={220} includeMargin />
+                  </div>
+                  {qrUrl ? (
+                    <>
+                      <div className="profile-qr-url-box">
+                        <a href={qrUrl} target="_blank" rel="noopener noreferrer">
+                          {qrUrl}
+                        </a>
+                      </div>
+                      <div className="profile-qr-actions">
+                        <button type="button" className="btn btn-primary" onClick={() => downloadQr('profile-qr-field-main')}>
+                          Download QR Code
+                        </button>
+                        <button type="button" className="btn btn-secondary" onClick={copyQrLink}>
+                          Copy Link
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="state-message">No QR code found. Please ensure your vehicle is registered.</p>
+                  )}
                 </div>
               </section>
             )}
 
             {!editingSection && section === 'password' && (
-              <section className="profile-password-panel">
-                <h2>Password &amp; security</h2>
+              <section className="profile-section">
+                <div className="profile-section-header">
+                  <h2>Password &amp; Security</h2>
+                </div>
                 <form className="profile-password-form" onSubmit={handleChangePassword}>
                   <label className="profile-edit-field" htmlFor="currentPassword">
                     <span className="profile-label">Current Password</span>
@@ -398,73 +592,82 @@ export default function Profile() {
                   </label>
                   {passwordError && <p className="state-message state-message--error">{passwordError}</p>}
                   {passwordSuccess && <p className="profile-success">{passwordSuccess}</p>}
-                  <div className="profile-form-actions"><button type="submit" className="profile-save-button" disabled={passwordSaving}>{passwordSaving?'Changing...':'Change Password'}</button></div>
+                  <div className="profile-form-actions">
+                    <button type="submit" className="btn btn-primary" disabled={passwordSaving}>
+                      {passwordSaving ? 'Updating...' : 'Change Password'}
+                    </button>
+                  </div>
                 </form>
               </section>
             )}
 
             {!editingSection && section === 'appearance' && (
-              <section className="profile-section appearance-section">
-                <h2>Appearance</h2>
+              <section className="profile-section">
+                <div className="profile-section-header">
+                  <h2>Appearance &amp; Theme</h2>
+                </div>
                 <AppearancePicker value={theme} onChange={setTheme} />
               </section>
             )}
 
             {!editingSection && section === 'help' && (
-              <section className="profile-section help-section">
-                <div className="help-section__intro">
-                  <h2>Help Center</h2>
-                  <p className="help-section__subtitle">Browse common topics or chat with the SmartCar assistant.</p>
+              <section className="profile-section">
+                <div className="profile-section-header">
+                  <div>
+                    <h2>Help Center</h2>
+                    <p className="page-description" style={{ margin: '0.25rem 0 0', fontSize: '0.88rem' }}>
+                      Browse common topics or chat with the SmartCar assistant.
+                    </p>
+                  </div>
                 </div>
-
                 <div className="help-center">
-                  <aside className="help-topics">
-                    <div className="help-topics__header">
+                  <aside className="help-topics-card">
+                    <div className="help-topics-header">
                       <h3>Popular topics</h3>
-                      <span className="help-topics__count">{HELP_TOPICS.length} articles</span>
+                      <span className="help-topics-badge">3 articles</span>
                     </div>
-                    <div className="help-topic-list">
+                    <div className="help-topics-list">
                       {HELP_TOPICS.map((topic) => (
                         <button
                           key={topic.id}
                           type="button"
-                          className="help-topic-button"
+                          className="help-topic-item"
                           onClick={() => askHelpQuestion(topic.label)}
                         >
-                          <span className="help-topic-button__content">
-                            <span className="help-topic-button__category">{topic.category}</span>
-                            <span className="help-topic-button__label">{topic.label}</span>
-                          </span>
-                          <svg className="help-topic-button__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <path d="M9 18l6-6-6-6" />
+                          <div className="help-topic-text">
+                            <span className="help-topic-category">{topic.category}</span>
+                            <span className="help-topic-title">{topic.label}</span>
+                          </div>
+                          <svg className="help-topic-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <polyline points="9 18 15 12 9 6" />
                           </svg>
                         </button>
                       ))}
                     </div>
                   </aside>
 
-                  <div className="help-chat">
+                  <div className="help-chat-card">
                     <div className="help-chat__header">
                       <div className="help-chat__identity">
                         <div className="help-chat__avatar" aria-hidden="true">
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 3l2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5L4.8 8.2l5-.7L12 3z" />
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                           </svg>
                         </div>
                         <div>
-                          <strong>SmartCar Assistant</strong>
-                          <span>Typically replies instantly</span>
+                          <strong className="help-chat__name">SmartCar Assistant</strong>
+                          <span className="help-chat__sub">Typically replies instantly</span>
                         </div>
                       </div>
-                      <span className="help-chat__status">Online</span>
+                      <span className="help-chat__status">ONLINE</span>
                     </div>
 
                     <div className="help-chat__body">
                       {helpMessages.length === 0 ? (
-                        <div className="help-chat__empty">
+                        <div className="help-chat__empty-state">
                           <div className="help-chat__empty-icon" aria-hidden="true">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M21 15a4 4 0 01-4 4H8l-5 3V7a4 4 0 014-4h10a4 4 0 014 4z" />
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                             </svg>
                           </div>
                           <strong>How can we help?</strong>
@@ -472,17 +675,7 @@ export default function Profile() {
                         </div>
                       ) : (
                         helpMessages.map((message, index) => (
-                          <div
-                            key={`${message.from}-${index}`}
-                            className={`help-message help-message--${message.from}`}
-                          >
-                            {message.from === 'bot' && (
-                              <div className="help-message__avatar" aria-hidden="true">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M12 3l2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5L4.8 8.2l5-.7L12 3z" />
-                                </svg>
-                              </div>
-                            )}
+                          <div key={`${message.from}-${index}`} className={`help-message help-message--${message.from}`}>
                             <div className="help-message__bubble">{message.text}</div>
                           </div>
                         ))
@@ -505,7 +698,7 @@ export default function Profile() {
                       />
                       <button
                         type="button"
-                        className="help-chat__send"
+                        className="btn btn-primary help-chat__send-btn"
                         onClick={submitHelpQuestion}
                         disabled={!helpInput.trim()}
                       >
@@ -518,23 +711,52 @@ export default function Profile() {
             )}
 
             {!editingSection && section === 'about' && (
-              <section className="profile-section about-section">
+              <section className="profile-section">
+                <div className="profile-section-header">
+                  <h2>About SmartCar QR</h2>
+                </div>
                 <AboutAppExplainer />
               </section>
             )}
           </div>
         </div>
 
+        {/* Modal for full QR view */}
         {showQrModal && (
-          <div role="dialog" aria-modal="true" aria-label="QR code preview" style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', zIndex: 9999 }} onClick={closeQrModal}>
-            <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', padding: 20, borderRadius: 8, maxWidth: 480, width: '92%', textAlign: 'center' }}>
-              <h3 style={{ marginTop: 0 }}>My QR</h3>
-              <div style={{ display: 'flex', justifyContent: 'center' }}><QRCodeCanvas id="profile-qr-modal" value={qrUrl} size={300} includeMargin /></div>
-              <p style={{ marginTop: 12, wordBreak: 'break-all' }}><a href={qrUrl} target="_blank" rel="noopener noreferrer">{qrUrl}</a></p>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12 }}>
-                <button type="button" onClick={() => downloadQr('profile-qr-modal')} className="profile-download-button">Download</button>
-                <button type="button" onClick={copyQrLink} className="profile-copy-button">Copy link</button>
-                <button type="button" onClick={closeQrModal} className="profile-close-button">Close</button>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="QR code preview"
+            className="service-modal-backdrop"
+            onClick={closeQrModal}
+          >
+            <div className="service-modal" onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
+              <div className="service-modal__header">
+                <h2>Vehicle QR Code</h2>
+                <button type="button" className="service-modal__close" onClick={closeQrModal} aria-label="Close modal">
+                  ×
+                </button>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', margin: '1rem 0' }}>
+                <div className="profile-qr-canvas-box">
+                  <QRCodeCanvas id="profile-qr-modal" value={qrUrl} size={240} includeMargin />
+                </div>
+              </div>
+              <div className="profile-qr-url-box" style={{ margin: '0 auto 1.25rem' }}>
+                <a href={qrUrl} target="_blank" rel="noopener noreferrer">
+                  {qrUrl}
+                </a>
+              </div>
+              <div className="profile-qr-actions">
+                <button type="button" onClick={() => downloadQr('profile-qr-modal')} className="btn btn-primary">
+                  Download
+                </button>
+                <button type="button" onClick={copyQrLink} className="btn btn-secondary">
+                  Copy Link
+                </button>
+                <button type="button" onClick={closeQrModal} className="btn btn-outline">
+                  Close
+                </button>
               </div>
             </div>
           </div>
