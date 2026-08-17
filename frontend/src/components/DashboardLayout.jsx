@@ -59,14 +59,6 @@ function DashboardLayout() {
               Messages
             </NavLink>
             <NavLink
-              to="/profile"
-              className={({ isActive }) =>
-                `dashboard-link ${isActive ? 'is-active' : ''}`
-              }
-            >
-              Profile
-            </NavLink>
-            <NavLink
               to="/users"
               className={({ isActive }) =>
                 `dashboard-link ${isActive ? 'is-active' : ''}`
@@ -75,6 +67,20 @@ function DashboardLayout() {
               Users
             </NavLink>
             
+          </div>
+          <div className="dashboard-account">
+            <NavLink
+              to="/profile"
+              className={({ isActive }) =>
+                `dashboard-link ${isActive ? 'is-active' : ''}`
+              }
+              aria-label="Profile"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                <circle cx="12" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.2" />
+                <path d="M4 20c0-3.3 4-5 8-5s8 1.7 8 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </NavLink>
           </div>
         </nav>
       </header>
