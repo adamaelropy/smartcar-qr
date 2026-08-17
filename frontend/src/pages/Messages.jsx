@@ -3,59 +3,6 @@ import { useLocation } from 'react-router-dom';
 import { fetchMessages, sendAutoReply } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
-const fallbackThreads = [
-  {
-    id: 'qr-accident',
-    senderName: 'Random passerby',
-    role: 'Scanned QR',
-    label: 'Emergency alert',
-    preview: 'A stranger scanned the QR on your relative\'s car and sent an emergency message.',
-    time: 'Just now',
-    unread: 1,
-    blocked: false,
-    emergency: true,
-    messages: [
-      {
-        id: 1,
-        sender: 'them',
-        text: 'Please come to this location immediately: 47 Cedar Lane, Greenfield. Your relative may be in danger and needs help now.',
-        time: '08:12 PM',
-      },
-      {
-        id: 2,
-        sender: 'me',
-        text: 'I am on my way and I am contacting the emergency services now.',
-        time: '08:14 PM',
-      },
-    ],
-  },
-  {
-    id: 'qr-blocked',
-    senderName: 'Random passerby',
-    role: 'Scanned QR',
-    label: 'Blocked message',
-    preview: 'A stranger scanned the QR on the back of the vehicle and sent a blocked message.',
-    time: '3 min ago',
-    unread: 1,
-    blocked: true,
-    emergency: false,
-    messages: [
-      {
-        id: 1,
-        sender: 'them',
-        text: 'Hey, you are blocking my car, please come and remove it.',
-        time: '08:09 PM',
-      },
-      {
-        id: 2,
-        sender: 'me',
-        text: 'Okay sorry, I am on my way!',
-        time: '08:10 PM',
-      },
-    ],
-  },
-];
-
 function Messages() {
   const location = useLocation();
   const { token } = useAuth();
@@ -67,54 +14,62 @@ function Messages() {
   const [sendingReply, setSendingReply] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadMessages = async () => {
       if (!token) {
-        setLoading(false);
+        if (isMounted) setLoading(false);
         return;
       }
 
       try {
         const { ok, data } = await fetchMessages(token);
 
+        if (!isMounted) return;
+
         if (ok && Array.isArray(data?.messages)) {
-          setThreads(data.messages);
-          const firstThreadId = queryThread || data.messages[0]?.id || null;
-          setSelectedThreadId(firstThreadId);
+          const list = data.messages;
+          const initialId = queryThread || list[0]?.id || null;
+          // mark active thread as read
+          const updatedList = list.map((t) => (t.id === initialId ? { ...t, unread: 0 } : t));
+          setThreads(updatedList);
+          setSelectedThreadId(initialId);
         } else {
           setThreads([]);
           setSelectedThreadId(queryThread || null);
         }
       } catch {
-        setThreads([]);
-        setSelectedThreadId(queryThread || null);
+        if (isMounted) {
+          setThreads([]);
+          setSelectedThreadId(queryThread || null);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadMessages();
+
+    return () => {
+      isMounted = false;
+    };
   }, [token, queryThread]);
 
-  useEffect(() => {
-    if (queryThread && threads.some((thread) => thread.id === queryThread)) {
-      setSelectedThreadId(queryThread);
-    }
-  }, [queryThread, threads]);
+  const handleSelectThread = (threadId) => {
+    setSelectedThreadId(threadId);
+    setThreads((currentThreads) =>
+      currentThreads.map((thread) =>
+        thread.id === threadId ? { ...thread, unread: 0 } : thread,
+      ),
+    );
+  };
 
   const selectedThread = useMemo(
     () => threads.find((thread) => thread.id === selectedThreadId) || threads[0] || null,
     [selectedThreadId, threads],
   );
-
-  useEffect(() => {
-    if (!selectedThreadId) return;
-
-    setThreads((currentThreads) =>
-      currentThreads.map((thread) =>
-        thread.id === selectedThreadId ? { ...thread, unread: 0 } : thread,
-      ),
-    );
-  }, [selectedThreadId]);
 
   const handleAutoReply = async () => {
     if (!selectedThread || !token || sendingReply) return;
@@ -143,7 +98,7 @@ function Messages() {
                       id: Date.now(),
                       sender: 'me',
                       text: data.message || safeMessage,
-                      time: 'Now',
+                      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                     },
                   ],
                 }
@@ -161,20 +116,20 @@ function Messages() {
       <section className="messages-layout">
         <aside className="messages-sidebar">
           <div className="messages-header-row">
-            <h2>Messages</h2>
+            <h2>Inbox</h2>
           </div>
 
           {loading ? (
-            <p className="state-message">Loading messages...</p>
+            <p className="state-message">Loading message threads...</p>
           ) : threads.length === 0 ? (
-            <p className="state-message">No messages yet.</p>
+            <p className="state-message">No messages received yet.</p>
           ) : (
             threads.map((thread) => (
               <button
                 key={thread.id}
                 type="button"
-                className={`message-thread ${selectedThreadId === thread.id ? 'is-selected' : ''}`}
-                onClick={() => setSelectedThreadId(thread.id)}
+                className={`message-thread ${selectedThread?.id === thread.id ? 'is-selected' : ''}`}
+                onClick={() => handleSelectThread(thread.id)}
               >
                 <div className="message-thread__top">
                   <strong>{thread.senderName}</strong>
@@ -183,7 +138,7 @@ function Messages() {
 
                 <div className="message-thread__meta">
                   <span className={`tag ${thread.blocked ? 'tag-blocked' : thread.emergency ? 'tag-emergency' : 'tag-neutral'}`}>
-                    {thread.blocked ? 'Blocked' : thread.emergency ? 'Emergency' : thread.role}
+                    {thread.blocked ? 'Blocked Alert' : thread.emergency ? 'Emergency' : thread.role || 'Contact'}
                   </span>
                   {thread.unread > 0 && <span className="message-count">{thread.unread}</span>}
                 </div>
@@ -194,17 +149,19 @@ function Messages() {
           )}
         </aside>
 
-        {selectedThread && (
+        {selectedThread ? (
           <section className="messages-chat-panel">
             <div className="messages-chat-header">
               <div>
                 <p className="eyebrow">Conversation</p>
                 <h2>{selectedThread.senderName}</h2>
               </div>
-              {selectedThread.blocked && <span className="tag tag-blocked">Blocked</span>}
-              {selectedThread.emergency && !selectedThread.blocked && (
-                <span className="tag tag-emergency">Emergency</span>
-              )}
+              <div>
+                {selectedThread.blocked && <span className="tag tag-blocked">Blocked Vehicle</span>}
+                {selectedThread.emergency && !selectedThread.blocked && (
+                  <span className="tag tag-emergency">Emergency Alert</span>
+                )}
+              </div>
             </div>
 
             <div className="messages-list">
@@ -220,17 +177,28 @@ function Messages() {
             </div>
 
             <div className="message-reply-panel">
-              <button type="button" onClick={handleAutoReply} disabled={sendingReply}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleAutoReply}
+                disabled={sendingReply}
+              >
                 {sendingReply
-                  ? 'Sending...'
+                  ? 'Sending response...'
                   : selectedThread.blocked
-                    ? 'Okay sorry, I am on my way!'
+                    ? 'Reply: I am on my way'
                     : selectedThread.emergency
-                      ? 'Send emergency response'
-                      : 'Send automated reply'}
+                      ? 'Send Emergency Response'
+                      : 'Send Automated Reply'}
               </button>
             </div>
           </section>
+        ) : (
+          !loading && (
+            <section className="messages-chat-panel" style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <p className="state-message">Select a thread from the inbox to view messages.</p>
+            </section>
+          )
         )}
       </section>
     </main>

@@ -2,14 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import ServiceCard from '../components/ServiceCard';
 import {
   SERVICE_TYPE_OPTIONS,
-  getServiceTypeLabel,
 } from '../constants/serviceTypes';
 import { fetchServices } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import '../styles/auth.css';
 
 function matchesQuery(service, normalizedQuery) {
-  const searchableText = [service.service_name]
+  const searchableText = [service.service_name, service.location]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
@@ -113,16 +112,10 @@ function Home() {
 
   return (
     <main className="page-shell dashboard-page home-page">
-      <section className="home-welcome">
-        <h1>Welcome {user?.username || 'user'}!</h1>
-      </section>
-
-      <section className="home-card services-page-card">
-        <p className="eyebrow">Services</p>
-        <h1>Find Vehicle Services</h1>
-        <p className="page-description">
-          Search by service name.
-        </p>
+      <section className="home-card surface-card">
+        <div className="home-welcome">
+          <h1>Welcome back, {user?.name || user?.username || 'Driver'}</h1>
+        </div>
 
         <div className="service-toolbar">
           <div className="service-search">
@@ -130,19 +123,19 @@ function Home() {
               type="text"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search service name"
-              aria-label="Search services by name"
+              placeholder="Search by service name or location..."
+              aria-label="Search services"
             />
           </div>
 
           <div className="service-filter-row" aria-label="Service filters">
             <label className="service-filter-field">
-              <span>Type</span>
+              <span>Service Type</span>
               <select
                 value={selectedType}
                 onChange={(event) => setSelectedType(event.target.value)}
               >
-                <option value="all">All types</option>
+                <option value="all">All Service Types</option>
                 {SERVICE_TYPE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -157,7 +150,7 @@ function Home() {
                 value={selectedLocation}
                 onChange={(event) => setSelectedLocation(event.target.value)}
               >
-                <option value="all">All locations</option>
+                <option value="all">All Locations</option>
                 {availableLocations.map((location) => (
                   <option key={location} value={location}>
                     {location}
@@ -172,8 +165,8 @@ function Home() {
                 value={selectedAvailability}
                 onChange={(event) => setSelectedAvailability(event.target.value)}
               >
-                <option value="all">All availability</option>
-                <option value="available">Available</option>
+                <option value="all">All Availability</option>
+                <option value="available">Available Now</option>
                 <option value="unavailable">Unavailable</option>
               </select>
             </label>
@@ -181,7 +174,7 @@ function Home() {
         </div>
 
         {showInitialLoading && (
-          <p className="state-message">Loading services...</p>
+          <p className="state-message">Loading verified services...</p>
         )}
 
         {error && (
@@ -191,11 +184,11 @@ function Home() {
         )}
 
         {showEmptyState && (
-          <p className="state-message">No services found.</p>
+          <p className="state-message">No services match your active search filters.</p>
         )}
 
         {showNoServicesLoaded && (
-          <p className="state-message">No services found.</p>
+          <p className="state-message">No services currently available.</p>
         )}
 
         <section className="service-list">

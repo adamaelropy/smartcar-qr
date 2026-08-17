@@ -1,33 +1,30 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import '../App.css';
 
 export default function Landing() {
   return (
-    <main className="page-shell home-page">
-      <section className="home-card surface-card">
-        <div className="home-welcome">
-          <p className="eyebrow">Smart Vehicle QR System</p>
-          <h1>
+    <main className="landing-page-shell">
+      <section className="landing-card">
+        <div className="landing-hero">
+          <h1 className="landing-title">
             Let Anyone Reach You
             <br />
-            <span style={{ color: 'var(--accent)' }}>Privately &amp; Instantly</span>
-            <br />Via Your Vehicle QR
+            <span className="text-accent">Privately &amp; Instantly</span>
+            <br />
+            Via Your Vehicle QR
           </h1>
 
-          <p className="page-description" style={{ maxWidth: 720, margin: '1rem auto' }}>
-            Place a Scanigo QR sticker on your vehicle. When someone needs to reach you — wrong parking,
-            lights left on, or a minor accident — they scan and contact you without ever seeing your phone number.
+          <p className="landing-description">
+            Place a SmartCar QR code on your vehicle. When someone needs to reach you — blocked parking,
+            lights left on, or an emergency — they scan and contact you instantly without ever seeing your private phone number.
           </p>
 
-          <div className="home-actions" style={{ justifyContent: 'center', marginTop: '1.5rem' }}>
-            <Link to="/signup" className="auth-button">
+          <div className="landing-actions">
+            <Link to="/signup" className="btn btn-primary landing-btn-primary">
               Get Started
             </Link>
-            <Link to="/login" className="home-actions a" style={{ textDecoration: 'none' }}>
-              <button className="dashboard-link" style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-h)', padding: '0.6rem 1rem', borderRadius: 12 }}>
-                Login
-              </button>
+            <Link to="/login" className="btn btn-secondary landing-btn-secondary">
+              Sign In
             </Link>
           </div>
         </div>

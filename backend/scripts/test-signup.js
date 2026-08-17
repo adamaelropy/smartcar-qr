@@ -38,7 +38,7 @@ function buildSignupBody() {
         relativeName: "Jane Doe",
         relativePhone: "96170987654",
         relationship: "Spouse",
-        plateNumber: "ABC123",
+        plateNumber: `PL-${suffix}`.slice(0, 15),
         carName: "Toyota Corolla",
         yearModel: 2020
     };

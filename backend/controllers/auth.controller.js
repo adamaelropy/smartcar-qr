@@ -218,7 +218,8 @@ async function getMe(req, res) {
                         vehicle_id: true,
                         plate_number: true,
                         car_name: true,
-                        year_model: true
+                        year_model: true,
+                        qr_token: true
                     }
                 }
             }
@@ -446,7 +447,8 @@ async function updateMe(req, res) {
                         vehicle_id: true,
                         plate_number: true,
                         car_name: true,
-                        year_model: true
+                        year_model: true,
+                        qr_token: true
                     }
                 }
             }

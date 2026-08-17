@@ -26,29 +26,33 @@ function DashboardLayout() {
 
     async function loadUnread() {
       if (!isAuthenticated || !token) return;
-      const { ok, data } = await fetchMessages(token);
-      if (!mounted || !ok) return;
+      try {
+        const { ok, data } = await fetchMessages(token);
+        if (!mounted || !ok) return;
 
-      const threads = Array.isArray(data?.messages) ? data.messages : [];
-      const totalUnread = threads.reduce((sum, t) => sum + (t.unread || 0), 0);
+        const threads = Array.isArray(data?.messages) ? data.messages : [];
+        const totalUnread = threads.reduce((sum, t) => sum + (t.unread || 0), 0);
 
-      // first load: set baseline without notifying
-      if (lastUnread === 0) {
+        // first load: set baseline without notifying
+        if (lastUnread === 0) {
+          lastUnread = totalUnread;
+          setUnreadCount(totalUnread);
+          return;
+        }
+
+        if (totalUnread > lastUnread) {
+          setActiveNotification({
+            title: 'New Vehicle Message',
+            subtitle: `You have ${totalUnread - lastUnread} new message(s)`,
+            thread: '/messages',
+          });
+        }
+
         lastUnread = totalUnread;
         setUnreadCount(totalUnread);
-        return;
+      } catch {
+        // ignore network error
       }
-
-      if (totalUnread > lastUnread) {
-        setActiveNotification({
-          title: 'New message',
-          subtitle: `You have ${totalUnread - lastUnread} new message(s)`,
-          thread: '/messages',
-        });
-      }
-
-      lastUnread = totalUnread;
-      setUnreadCount(totalUnread);
     }
 
     // initial load + interval
@@ -74,7 +78,9 @@ function DashboardLayout() {
     <div className="dashboard-shell">
       <header className="dashboard-nav-wrap">
         <nav className="dashboard-nav page-shell" aria-label="Main navigation">
-          <div className="dashboard-brand">SmartCar QR</div>
+          <NavLink to="/home" className="dashboard-brand">
+            SmartCar QR
+          </NavLink>
 
           <div className="dashboard-links">
             <NavLink
@@ -91,7 +97,8 @@ function DashboardLayout() {
                 `dashboard-link ${isActive ? 'is-active' : ''}`
               }
             >
-              Messages{unreadCount > 0 && <span className="message-count">{unreadCount}</span>}
+              Messages
+              {unreadCount > 0 && <span className="message-count">{unreadCount}</span>}
             </NavLink>
             <NavLink
               to="/users"
@@ -101,19 +108,20 @@ function DashboardLayout() {
             >
               Users
             </NavLink>
-            
           </div>
+
           <div className="dashboard-account">
             <NavLink
               to="/profile"
               className={({ isActive }) =>
-                `dashboard-link ${isActive ? 'is-active' : ''}`
+                `dashboard-avatar-btn ${isActive ? 'is-active' : ''}`
               }
               aria-label="Profile"
+              title="View Profile & Settings"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                <circle cx="12" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.2" />
-                <path d="M4 20c0-3.3 4-5 8-5s8 1.7 8 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
               </svg>
             </NavLink>
           </div>
@@ -125,19 +133,23 @@ function DashboardLayout() {
       {activeNotification && (
         <div className="message-toast" role="alert">
           <div className="message-toast__content">
-            <span className="message-toast__badge">New</span>
+            <span className="message-toast__badge">Alert</span>
             <div>
-              <strong>{activeNotification.title}</strong>
-              <p>{activeNotification.subtitle}</p>
+              <strong style={{ color: 'var(--text-h)', display: 'block', fontSize: '0.92rem' }}>
+                {activeNotification.title}
+              </strong>
+              <p style={{ margin: '0.2rem 0 0', color: 'var(--text-secondary)', fontSize: '0.84rem' }}>
+                {activeNotification.subtitle}
+              </p>
             </div>
           </div>
 
           <div className="message-toast__actions">
-            <button type="button" onClick={openNotification}>
-              Open
+            <button type="button" className="btn btn-primary btn-sm" onClick={openNotification}>
+              View Messages
             </button>
-            <button type="button" className="message-toast__close" onClick={closeNotification}>
-              Close
+            <button type="button" className="btn btn-outline btn-sm" onClick={closeNotification}>
+              Dismiss
             </button>
           </div>
         </div>
