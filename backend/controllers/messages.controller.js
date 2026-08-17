@@ -81,48 +81,35 @@ async function getMessages(req, res) {
             },
         });
 
-        // Group communications into conversation threads
         const groupMap = new Map();
-
-        // Collect external vehicle IDs and usernames to resolve display names
         const vehicleIdsToLookup = new Set();
-        const usernamesToLookup = new Set();
 
         communications.forEach((item) => {
             const isOwner = myVehicleId && item.vehicle_id === myVehicleId;
-            let groupKey;
+            const sourceKey = item.source || 'unknown';
+            const groupKey = isOwner
+                ? `owner_${myVehicleId}_${sourceKey}`
+                : `visitor_${item.vehicle_id}_${sourceKey}`;
 
-            if (isOwner) {
-                // I am the vehicle owner; conversation is grouped by sender source
-                const src = item.source || 'unknown';
-                groupKey = `owner_${myVehicleId}_${src}`;
-                if (src.startsWith('vehicle:')) {
-                    const vId = Number(src.split(':')[1]);
-                    if (vId) vehicleIdsToLookup.add(vId);
-                } else if (src.startsWith('user:')) {
-                    const uName = src.split(':')[1];
-                    if (uName) usernamesToLookup.add(uName);
-                }
-            } else {
-                // I am the visitor who messaged another vehicle; conversation is grouped by that vehicle
-                groupKey = `visitor_${item.vehicle_id}_${item.source || mySources[0] || 'me'}`;
+            if (isOwner && sourceKey.startsWith('vehicle:')) {
+                const vId = Number(sourceKey.split(':')[1]);
+                if (vId) vehicleIdsToLookup.add(vId);
             }
 
             if (!groupMap.has(groupKey)) {
                 groupMap.set(groupKey, {
                     groupKey,
                     isOwner,
+                    sourceKey,
                     targetVehicleId: item.vehicle_id,
-                    sourceKey: item.source || 'unknown',
-                    items: [],
                     targetVehicle: item.vehicle,
+                    items: [],
                 });
             }
 
             groupMap.get(groupKey).items.push(item);
         });
 
-        // Resolve vehicle IDs to owner usernames
         const vehicleOwnerMap = {};
         if (vehicleIdsToLookup.size > 0) {
             const resolvedVehicles = await prisma.vehicle.findMany({
@@ -139,7 +126,7 @@ async function getMessages(req, res) {
             });
         }
 
-        function resolveSenderDisplayName(src, isOwner, targetVehicle) {
+        function displayNameForSource(src, isOwner, targetVehicle) {
             if (!isOwner && targetVehicle) {
                 return targetVehicle.user?.username || targetVehicle.car_name || 'Vehicle Owner';
             }
@@ -151,12 +138,15 @@ async function getMessages(req, res) {
         }
 
         const threads = Array.from(groupMap.values()).map((group) => {
-            const { isOwner, targetVehicleId, sourceKey, items, targetVehicle } = group;
+            const { isOwner, sourceKey, targetVehicleId, targetVehicle, items } = group;
             const last = items[items.length - 1];
-            const senderName = displayNameForSource(sourceKey);
+            const senderName = displayNameForSource(sourceKey, isOwner, targetVehicle);
             const unread = items.filter((i) => i.direction === 'RECEIVED' && !i.read).length;
             const blocked = items.some((i) => classifyMessage(i) === 'blocked');
             const emergency = items.some((i) => classifyMessage(i) === 'emergency');
+            const threadId = isOwner
+                ? `vehicle-${myVehicleId}-${encodeURIComponent(sourceKey)}`
+                : `vehicle-${targetVehicleId}-${encodeURIComponent(sourceKey || 'unknown')}`;
 
             return {
                 id: threadId,
@@ -167,9 +157,9 @@ async function getMessages(req, res) {
                 time: last
                     ? new Date(last.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                     : 'Just now',
-                unread: unreadCount,
-                blocked: isBlocked,
-                emergency: isEmergency,
+                unread,
+                blocked,
+                emergency,
                 messages: items.map((item) => {
                     let senderType;
                     if (isOwner) {
@@ -303,28 +293,28 @@ async function sendAutoReply(req, res) {
         }
 
         const myVehicleId = currentUser.vehicle?.vehicle_id || null;
-        const mySource = myVehicleId ? `vehicle:${myVehicleId}` : (currentUser.username ? `user:${currentUser.username}` : `userId:${currentUser.user_id}`);
+        const mySource = myVehicleId
+            ? `vehicle:${myVehicleId}`
+            : (currentUser.username ? `user:${currentUser.username}` : `userId:${currentUser.user_id}`);
 
-        // try to extract source from threadId so the reply is stored on the same thread
-        let source = null;
-        try {
-            const prefix = `vehicle-${vehicle.vehicle_id}-`;
-            if (threadId && threadId.startsWith(prefix)) {
-                const middle = threadId.slice(prefix.length);
+        let targetVehicleId = myVehicleId;
+        let targetSource = threadId;
+        let direction = 'SENT';
+
+        const threadPrefix = 'vehicle-';
+        if (threadId && typeof threadId === 'string' && threadId.startsWith(threadPrefix)) {
+            const match = /^vehicle-(\d+)-(.+)$/.exec(threadId);
+            if (match) {
+                targetVehicleId = Number(match[1]);
                 try {
-                    source = decodeURIComponent(middle) || null;
+                    targetSource = decodeURIComponent(match[2]);
                 } catch (e) {
-                    source = middle || null;
+                    targetSource = match[2];
                 }
             }
-            direction = (myVehicleId && targetVehicleId === myVehicleId) ? "SENT" : "RECEIVED";
-        } else {
-            targetVehicleId = myVehicleId;
-            targetSource = threadId;
-            direction = "SENT";
         }
 
-        if (!targetVehicleId) {
+        if (!targetVehicleId || Number.isNaN(targetVehicleId)) {
             return res.status(400).json({
                 success: false,
                 message: "No vehicle destination found for this thread.",
