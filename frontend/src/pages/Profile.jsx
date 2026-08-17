@@ -8,6 +8,10 @@ import {
   fetchMyVehicleQr,
   updateMyProfile,
 } from '../services/api';
+import PasswordInput from '../components/PasswordInput';
+import AboutAppExplainer from '../components/AboutAppExplainer';
+import AppearancePicker from '../components/AppearancePicker';
+import { applyTheme, getStoredTheme, resolveTheme } from '../utils/theme';
 import '../styles/auth.css';
 
 function buildFormFromProfile(profile) {
@@ -35,6 +39,12 @@ function EditField({ id, label, type = 'text', value, onChange }) {
   );
 }
 
+const HELP_TOPICS = [
+  { id: 'register', label: 'How do I register a vehicle?', category: 'Getting started' },
+  { id: 'qr', label: 'How do I download my QR?', category: 'Vehicle & QR' },
+  { id: 'bug', label: 'How do I report a bug?', category: 'Support' },
+];
+
 export default function Profile() {
   const { token, logout, updateStoredUser } = useAuth();
   const navigate = useNavigate();
@@ -55,49 +65,17 @@ export default function Profile() {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // UI state
   const [section, setSection] = useState('account');
-  const [selectedField, setSelectedField] = useState(null);
-  const [editValue, setEditValue] = useState('');
   const [helpMessages, setHelpMessages] = useState([]);
   const [helpInput, setHelpInput] = useState('');
 
-  // theme: 'system' | 'light' | 'dark'
-  const [theme, setTheme] = useState(() => {
-    try {
-      return localStorage.getItem('theme') || 'system';
-    } catch {
-      return 'system';
-    }
-  });
+  // theme: 'light' | 'dark'
+  const [theme, setTheme] = useState(() => resolveTheme(getStoredTheme()));
 
   useEffect(() => {
-    const apply = (mode) => {
-      if (mode === 'system') {
-        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light';
-      } else {
-        document.documentElement.dataset.theme = mode === 'dark' ? 'dark' : 'light';
-      }
-    };
-
-    apply(theme);
-    try { localStorage.setItem('theme', theme); } catch {}
-
-    let mql;
-    const onChange = () => { if (theme === 'system') apply('system'); };
-    try {
-      if (window.matchMedia) {
-        mql = window.matchMedia('(prefers-color-scheme: dark)');
-        mql.addEventListener ? mql.addEventListener('change', onChange) : mql.addListener(onChange);
-      }
-    } catch {}
-
-    return () => { if (mql) { mql.removeEventListener ? mql.removeEventListener('change', onChange) : mql.removeListener(onChange); } };
+    applyTheme(theme);
   }, [theme]);
 
   const loadQrForVehicle = useCallback(
@@ -146,8 +124,18 @@ export default function Profile() {
 
   const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
 
-  const startEditing = (sec) => { setForm(buildFormFromProfile(profile)); setEditingSection(sec); setSaveError(''); setSuccessMessage(''); };
-  const cancelEditing = () => { setForm(null); setEditingSection(null); };
+  const cancelEditing = () => { setForm(null); setEditingSection(null); setSaveError(''); };
+  const startEditing = (sec) => {
+    setForm(buildFormFromProfile(profile));
+    setEditingSection(sec);
+    setSection(sec);
+    setSaveError('');
+    setSuccessMessage('');
+  };
+  const handleSectionChange = (nextSection) => {
+    if (editingSection) cancelEditing();
+    setSection(nextSection);
+  };
   const updateFormField = (field, value) => setForm((c) => ({ ...c, [field]: value }));
 
   const handleSaveProfile = async (e) => {
@@ -194,14 +182,29 @@ export default function Profile() {
   const copyQrLink = async () => { if (!qrUrl) return; try { await navigator.clipboard.writeText(qrUrl); setSuccessMessage('QR link copied'); setTimeout(()=>setSuccessMessage(''),2000); } catch {} };
 
   const handleHelpQuery = (q) => {
-    // simple canned responses
     const text = String(q).toLowerCase();
-    let reply = "I'm here to help — try our docs or contact support.";
-    if (text.includes('register') || text.includes('vehicle')) reply = 'To register a vehicle, go to Register > Vehicle and fill in the plate number and car details.';
-    else if (text.includes('qr') || text.includes('scan')) reply = 'When someone scans your QR, they can send a message to the device owner. You can download your QR from My QR.';
-    else if (text.includes('issue') || text.includes('bug') || text.includes('report')) reply = 'Please open an issue at support@example.com with details and we will investigate.';
+    let reply = "I'm here to help. Try selecting a topic or contact support@example.com.";
+    if (text.includes('register') || text.includes('vehicle')) {
+      reply = 'To register a vehicle, open Register from the menu and complete your personal, emergency contact, and vehicle details.';
+    } else if (text.includes('qr') || text.includes('scan') || text.includes('download')) {
+      reply = 'Go to Profile > My QR to view, download, or copy your QR link. Anyone who scans it can reach you through SmartCar QR.';
+    } else if (text.includes('issue') || text.includes('bug') || text.includes('report')) {
+      reply = 'Email support@example.com with a short description, screenshots if possible, and the steps to reproduce the issue.';
+    }
 
     setHelpMessages((h) => [...h, { from: 'bot', text: reply }]);
+  };
+
+  const askHelpQuestion = (question) => {
+    setHelpMessages((h) => [...h, { from: 'user', text: question }]);
+    handleHelpQuery(question);
+  };
+
+  const submitHelpQuestion = () => {
+    const question = helpInput.trim();
+    if (!question) return;
+    askHelpQuestion(question);
+    setHelpInput('');
   };
 
 
@@ -237,7 +240,7 @@ export default function Profile() {
 
               <nav style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }} aria-label="Profile sections">
                 {[['account','Account'],['personal','Personal details'],['myqr','My QR'],['password','Password & security'],['appearance','Appearance'],['help','Help'],['about','About']].map(([id,label])=> (
-                  <button key={id} type="button" onClick={() => setSection(id)} className={`dashboard-link ${section===id?'is-active':''}`} style={{ textAlign: 'left', padding: '8px 12px', borderRadius: 8, background: section===id? '#eef2ff':'transparent' }}>{label}</button>
+                  <button key={id} type="button" onClick={() => handleSectionChange(id)} className={`dashboard-link ${section===id?'is-active':''}`} style={{ textAlign: 'left', padding: '8px 12px', borderRadius: 8, background: section===id? '#eef2ff':'transparent' }}>{label}</button>
                 ))}
                 <button type="button" onClick={handleLogout} style={{ marginTop: 12, background: '#fee2e2', borderRadius: 8, padding: '8px 12px' }}>Log out</button>
               </nav>
@@ -336,7 +339,7 @@ export default function Profile() {
               </>
             )}
 
-            {section === 'myqr' && (
+            {!editingSection && section === 'myqr' && (
               <section className="profile-section">
                 <h2>My QR</h2>
                 <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
@@ -350,48 +353,48 @@ export default function Profile() {
               </section>
             )}
 
-            {section === 'password' && (
+            {!editingSection && section === 'password' && (
               <section className="profile-password-panel">
                 <h2>Password &amp; security</h2>
                 <form className="profile-password-form" onSubmit={handleChangePassword}>
                   <label className="profile-edit-field" htmlFor="currentPassword">
                     <span className="profile-label">Current Password</span>
-                    <div className="input-with-icon">
-                      <input id="currentPassword" className="profile-input" type={showCurrentPassword ? 'text' : 'password'} value={passwordForm.currentPassword} onChange={(e)=>updatePasswordField('currentPassword',e.target.value)} required />
-                      <button type="button" className="icon-button" onClick={() => setShowCurrentPassword(s => !s)} aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}>
-                        {showCurrentPassword ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l18 18"/><path d="M10.58 10.58A3 3 0 0113.42 13.42"/><path d="M14.12 14.12A9 9 0 0112 17c-4.97 0-9-5-9-5a19.6 19.6 0 014.28-4.77"/></svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1.05 12a19.6 19.6 0 014.28-4.77C7.99 4.99 11.03 3 12 3c4.97 0 9 5 9 5s-4.03 5-9 5a9 9 0 01-2.35-.31"/><circle cx="12" cy="12" r="3"/></svg>
-                        )}
-                      </button>
-                    </div>
+                    <PasswordInput
+                      id="currentPassword"
+                      inputClassName="profile-input"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => updatePasswordField('currentPassword', e.target.value)}
+                      autoComplete="current-password"
+                      required
+                      label="Show current password"
+                      hideLabel="Hide current password"
+                    />
                   </label>
                   <label className="profile-edit-field" htmlFor="newPassword">
                     <span className="profile-label">New Password</span>
-                    <div className="input-with-icon">
-                      <input id="newPassword" className="profile-input" type={showNewPassword ? 'text' : 'password'} value={passwordForm.newPassword} onChange={(e)=>updatePasswordField('newPassword',e.target.value)} required />
-                      <button type="button" className="icon-button" onClick={() => setShowNewPassword(s => !s)} aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}>
-                        {showNewPassword ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l18 18"/><path d="M10.58 10.58A3 3 0 0113.42 13.42"/><path d="M14.12 14.12A9 9 0 0112 17c-4.97 0-9-5-9-5a19.6 19.6 0 014.28-4.77"/></svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1.05 12a19.6 19.6 0 014.28-4.77C7.99 4.99 11.03 3 12 3c4.97 0 9 5 9 5s-4.03 5-9 5a9 9 0 01-2.35-.31"/><circle cx="12" cy="12" r="3"/></svg>
-                        )}
-                      </button>
-                    </div>
+                    <PasswordInput
+                      id="newPassword"
+                      inputClassName="profile-input"
+                      value={passwordForm.newPassword}
+                      onChange={(e) => updatePasswordField('newPassword', e.target.value)}
+                      autoComplete="new-password"
+                      required
+                      label="Show new password"
+                      hideLabel="Hide new password"
+                    />
                   </label>
                   <label className="profile-edit-field" htmlFor="confirmPassword">
                     <span className="profile-label">Confirm New Password</span>
-                    <div className="input-with-icon">
-                      <input id="confirmPassword" className="profile-input" type={showConfirmPassword ? 'text' : 'password'} value={passwordForm.confirmPassword} onChange={(e)=>updatePasswordField('confirmPassword',e.target.value)} required />
-                      <button type="button" className="icon-button" onClick={() => setShowConfirmPassword(s => !s)} aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}>
-                        {showConfirmPassword ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l18 18"/><path d="M10.58 10.58A3 3 0 0113.42 13.42"/><path d="M14.12 14.12A9 9 0 0112 17c-4.97 0-9-5-9-5a19.6 19.6 0 014.28-4.77"/></svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1.05 12a19.6 19.6 0 014.28-4.77C7.99 4.99 11.03 3 12 3c4.97 0 9 5 9 5s-4.03 5-9 5a9 9 0 01-2.35-.31"/><circle cx="12" cy="12" r="3"/></svg>
-                        )}
-                      </button>
-                    </div>
+                    <PasswordInput
+                      id="confirmPassword"
+                      inputClassName="profile-input"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => updatePasswordField('confirmPassword', e.target.value)}
+                      autoComplete="new-password"
+                      required
+                      label="Show confirm password"
+                      hideLabel="Hide confirm password"
+                    />
                   </label>
                   {passwordError && <p className="state-message state-message--error">{passwordError}</p>}
                   {passwordSuccess && <p className="profile-success">{passwordSuccess}</p>}
@@ -400,47 +403,123 @@ export default function Profile() {
               </section>
             )}
 
-            {section === 'appearance' && (
-              <section className="profile-section">
+            {!editingSection && section === 'appearance' && (
+              <section className="profile-section appearance-section">
                 <h2>Appearance</h2>
-                <div style={{ marginTop: 12, display: 'flex', gap: 12 }}>
-                  {['system','light','dark'].map((t)=> (
-                    <button key={t} type="button" onClick={() => setTheme(t)} className={theme===t? 'profile-edit-button' : 'profile-cancel-button'}>{t === 'system' ? 'System' : (t==='light'?'Light':'Dark')}</button>
-                  ))}
-                </div>
+                <AppearancePicker value={theme} onChange={setTheme} />
               </section>
             )}
 
-            {section === 'help' && (
-              <section className="profile-section">
-                <h2>Help</h2>
-                <div style={{ display: 'flex', gap: 20 }}>
-                  <div style={{ width: 320 }}>
-                    <p style={{ marginTop: 0 }}>Common questions</p>
-                    {['How do I register a vehicle?','How do I download my QR?','How do I report a bug?'].map((q)=> (
-                      <button key={q} type="button" onClick={() => { setHelpMessages((h)=>[...h,{from:'user',text:q}]); handleHelpQuery(q); }} style={{ display:'block', width:'100%', textAlign:'left', padding:10, marginBottom:8 }}>{q}</button>
-                    ))}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ minHeight: 160, border: '1px solid #e6e6e6', padding: 12, borderRadius: 8, overflowY: 'auto' }}>
-                      {helpMessages.length === 0 && <p className="page-description">Select a question or type below.</p>}
-                      {helpMessages.map((m,i)=> (
-                        <div key={i} style={{ marginBottom: 8, textAlign: m.from === 'user' ? 'right' : 'left' }}><div style={{ display:'inline-block', background: m.from === 'user' ? '#e6f0ff' : '#f1f5f9', padding:8, borderRadius:6 }}>{m.text}</div></div>
+            {!editingSection && section === 'help' && (
+              <section className="profile-section help-section">
+                <div className="help-section__intro">
+                  <h2>Help Center</h2>
+                  <p className="help-section__subtitle">Browse common topics or chat with the SmartCar assistant.</p>
+                </div>
+
+                <div className="help-center">
+                  <aside className="help-topics">
+                    <div className="help-topics__header">
+                      <h3>Popular topics</h3>
+                      <span className="help-topics__count">{HELP_TOPICS.length} articles</span>
+                    </div>
+                    <div className="help-topic-list">
+                      {HELP_TOPICS.map((topic) => (
+                        <button
+                          key={topic.id}
+                          type="button"
+                          className="help-topic-button"
+                          onClick={() => askHelpQuestion(topic.label)}
+                        >
+                          <span className="help-topic-button__content">
+                            <span className="help-topic-button__category">{topic.category}</span>
+                            <span className="help-topic-button__label">{topic.label}</span>
+                          </span>
+                          <svg className="help-topic-button__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M9 18l6-6-6-6" />
+                          </svg>
+                        </button>
                       ))}
                     </div>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                      <input value={helpInput} onChange={(e)=>setHelpInput(e.target.value)} placeholder="Ask a question" style={{ flex: 1, padding: 8 }} />
-                      <button type="button" onClick={()=>{ if (!helpInput) return; setHelpMessages((h)=>[...h,{from:'user',text:helpInput}]); handleHelpQuery(helpInput); setHelpInput(''); }}>Send</button>
+                  </aside>
+
+                  <div className="help-chat">
+                    <div className="help-chat__header">
+                      <div className="help-chat__identity">
+                        <div className="help-chat__avatar" aria-hidden="true">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 3l2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5L4.8 8.2l5-.7L12 3z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <strong>SmartCar Assistant</strong>
+                          <span>Typically replies instantly</span>
+                        </div>
+                      </div>
+                      <span className="help-chat__status">Online</span>
+                    </div>
+
+                    <div className="help-chat__body">
+                      {helpMessages.length === 0 ? (
+                        <div className="help-chat__empty">
+                          <div className="help-chat__empty-icon" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 15a4 4 0 01-4 4H8l-5 3V7a4 4 0 014-4h10a4 4 0 014 4z" />
+                            </svg>
+                          </div>
+                          <strong>How can we help?</strong>
+                          <p>Select a topic on the left or type your question below.</p>
+                        </div>
+                      ) : (
+                        helpMessages.map((message, index) => (
+                          <div
+                            key={`${message.from}-${index}`}
+                            className={`help-message help-message--${message.from}`}
+                          >
+                            {message.from === 'bot' && (
+                              <div className="help-message__avatar" aria-hidden="true">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M12 3l2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5L4.8 8.2l5-.7L12 3z" />
+                                </svg>
+                              </div>
+                            )}
+                            <div className="help-message__bubble">{message.text}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="help-chat__composer">
+                      <input
+                        className="help-chat__input"
+                        value={helpInput}
+                        onChange={(e) => setHelpInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            submitHelpQuestion();
+                          }
+                        }}
+                        placeholder="Ask a question..."
+                        aria-label="Ask a question"
+                      />
+                      <button
+                        type="button"
+                        className="help-chat__send"
+                        onClick={submitHelpQuestion}
+                        disabled={!helpInput.trim()}
+                      >
+                        Send
+                      </button>
                     </div>
                   </div>
                 </div>
               </section>
             )}
 
-            {section === 'about' && (
-              <section className="profile-section">
-                <h2>About SmartCar QR</h2>
-                <p>SmartCar QR provides quick sharing of vehicle contact information via QR codes. This app lets you manage profile, vehicle data, and your QR code for sharing with responders or contacts.</p>
+            {!editingSection && section === 'about' && (
+              <section className="profile-section about-section">
+                <AboutAppExplainer />
               </section>
             )}
           </div>
