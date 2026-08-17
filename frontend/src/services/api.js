@@ -117,6 +117,31 @@ export async function fetchVehicleByQrToken(token) {
   return parseResponse(response);
 }
 
+export async function postQrMessage(qrToken, payload, authToken) {
+  const headers = { 'Content-Type': 'application/json' };
+  // If caller didn't pass an auth token, attempt to read the stored token from localStorage
+  const effectiveToken = authToken || (typeof localStorage !== 'undefined' && localStorage.getItem('smartcar_token'));
+  if (effectiveToken) headers.Authorization = `Bearer ${effectiveToken}`;
+
+  try {
+    const response = await fetch(buildApiUrl(`/qr/${encodeURIComponent(qrToken)}/message`), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    return parseResponse(response);
+  } catch {
+    return {
+      ok: false,
+      status: 0,
+      data: {
+        message: 'Unable to reach the server. Is the backend running on port 3000?',
+      },
+    };
+  }
+}
+
 export async function fetchMessages(token) {
   const response = await fetch(buildApiUrl('/messages'), {
     headers: authHeaders(token),
@@ -130,6 +155,16 @@ export async function sendAutoReply(token, threadId, mode = 'default') {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify({ threadId, mode }),
+  });
+
+  return parseResponse(response);
+}
+
+export async function markThreadRead(token, threadId) {
+  const response = await fetch(buildApiUrl('/messages/read'), {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ threadId }),
   });
 
   return parseResponse(response);

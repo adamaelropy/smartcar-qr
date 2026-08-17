@@ -12,7 +12,7 @@ import Profile from "./pages/Profile";
 import Users from "./pages/Users";
 import QR from "./pages/QR";
 import Landing from "./pages/Landing";
-import { fetchVehicleByQrToken } from "./services/api";
+import { fetchVehicleByQrToken, postQrMessage } from "./services/api";
 import { useAuth } from "./context/AuthContext";
 
 import "./App.css";
@@ -31,6 +31,7 @@ function ScannedQR() {
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
   const [sentMessage, setSentMessage] = useState('');
+  const [sendError, setSendError] = useState(false);
   const [messageMode, setMessageMode] = useState('auto');
   const { token: authToken, user } = useAuth();
   // determine a stable sender identity for this client: prefer logged-in username, else a persistent visitor id
@@ -175,22 +176,31 @@ function ScannedQR() {
                   if (!messageToSend || !messageToSend.trim()) return;
 
                   setSending(true);
+                  setSendError(false);
                   try {
-                    const headers = { 'Content-Type': 'application/json' };
-                    if (authToken) headers.Authorization = `Bearer ${authToken}`;
+                    const { ok, data } = await postQrMessage(
+                      token,
+                      { type: 'MESSAGE', message: messageToSend, senderName, from: fromValue },
+                      authToken,
+                    );
 
-                    await fetch(`/api/qr/${encodeURIComponent(token)}/message`, {
-                      method: 'POST',
-                      headers,
-                      body: JSON.stringify({ type: 'MESSAGE', message: messageToSend, senderName, from: fromValue }),
-                    });
-                    setSentMessage('Message sent');
-                    setMessageText('');
+                    if (ok) {
+                      setSentMessage('Message sent');
+                      setSendError(false);
+                      setMessageText('');
+                    } else {
+                      setSendError(true);
+                      setSentMessage(data?.message || 'Failed to send message');
+                    }
                   } catch (err) {
+                    setSendError(true);
                     setSentMessage('Failed to send message');
                   } finally {
                     setSending(false);
-                    setTimeout(() => setSentMessage(''), 3000);
+                    setTimeout(() => {
+                      setSentMessage('');
+                      setSendError(false);
+                    }, 5000);
                   }
                 }}
                 disabled={sending}
@@ -199,7 +209,9 @@ function ScannedQR() {
               </button>
             </div>
 
-            {sentMessage && <p className="state-message">{sentMessage}</p>}
+            {sentMessage && (
+              <p className={`state-message${sendError ? ' state-message--error' : ''}`}>{sentMessage}</p>
+            )}
           </div>
         </div>
 
@@ -213,6 +225,7 @@ function ScannedQR() {
               onClick={async () => {
                 setSending(true);
                 setSentMessage('');
+                setSendError(false);
 
                 const getPosition = () =>
                   new Promise((resolve, reject) => {
@@ -235,19 +248,23 @@ function ScannedQR() {
                   const base = 'This vehicle got into an accident please head to this location asap';
                   const message = `${base} ${mapLink} (reported at ${timestamp} by ${visitorInfo})`;
 
-                  const headers = { 'Content-Type': 'application/json' };
-                  if (authToken) headers.Authorization = `Bearer ${authToken}`;
+                  const { ok, data } = await postQrMessage(
+                    token,
+                    { type: 'EMERGENCY', message, location: { lat, lng }, timestamp, senderName, from: fromValue },
+                    authToken,
+                  );
 
-                  await fetch(`/api/qr/${encodeURIComponent(token)}/message`, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({ type: 'EMERGENCY', message, location: { lat, lng }, timestamp, senderName, from: fromValue }),
-                  });
-
-                  setSentMessage('Relative notified');
+                  if (ok) {
+                    setSendError(false);
+                    setSentMessage('Message recorded for vehicle owner');
+                  } else {
+                    setSendError(true);
+                    setSentMessage(data?.message || 'Failed to notify vehicle owner');
+                  }
                 } catch (err) {
                   console.error('Emergency notify failed', err);
-                  setSentMessage('Failed to get location or notify relative');
+                  setSendError(true);
+                  setSentMessage('Failed to get location or notify vehicle owner');
                 } finally {
                   setSending(false);
                   setTimeout(() => setSentMessage(''), 5000);
@@ -257,7 +274,9 @@ function ScannedQR() {
             >
               {sending ? 'Notifying…' : 'Notify Relative'}
             </button>
-            {sentMessage && <p className="state-message">{sentMessage}</p>}
+            {sentMessage && (
+              <p className={`state-message${sendError ? ' state-message--error' : ''}`}>{sentMessage}</p>
+            )}
           </div>
         </div>
       </section>

@@ -29,6 +29,7 @@ async function getMessages(req, res) {
                 direction: true,
                 source: true,
                 message: true,
+                read: true,
                 created_at: true,
             },
         });
@@ -82,7 +83,7 @@ async function getMessages(req, res) {
             const items = groups[sourceKey];
             const last = items[items.length - 1];
             const senderName = displayNameForSource(sourceKey);
-            const unread = items.filter((i) => i.direction === 'RECEIVED').length;
+            const unread = items.filter((i) => i.direction === 'RECEIVED' && !i.read).length;
             const blocked = items.some((i) => classifyMessage(i) === 'blocked');
             const emergency = items.some((i) => classifyMessage(i) === 'emergency');
 
@@ -121,6 +122,72 @@ async function getMessages(req, res) {
     }
 }
 
+async function markThreadRead(req, res) {
+    const { threadId } = req.body || {};
+
+    if (!threadId) {
+        return res.status(400).json({ success: false, message: 'threadId is required' });
+    }
+
+    try {
+        const vehicle = await prisma.vehicle.findUnique({ where: { user_id: req.user.userId }, select: { vehicle_id: true } });
+        if (!vehicle) {
+            return res.status(404).json({ success: false, message: 'Vehicle not found for this user.' });
+        }
+
+        let source = null;
+        try {
+            const prefix = `vehicle-${vehicle.vehicle_id}-`;
+            if (threadId && threadId.startsWith(prefix)) {
+                const middle = threadId.slice(prefix.length);
+                try {
+                    source = decodeURIComponent(middle) || null;
+                } catch (e) {
+                    source = middle || null;
+                }
+            }
+        } catch (e) {
+            source = null;
+        }
+
+        if (!source) {
+            return res.status(400).json({ success: false, message: 'Invalid thread id' });
+        }
+
+        console.log('Marking thread read for vehicle:', vehicle.vehicle_id, 'source:', source);
+        // Use raw SQL to update read flag so we don't need to regenerate the Prisma client here
+                // Use parameterized raw query to safely pass values
+                let result = 0;
+                if (source === 'unknown') {
+                    // Some old rows use NULL for source; mark those as read as well
+                    result = await prisma.$executeRaw`
+                        UPDATE "Communication"
+                        SET "read" = true
+                        WHERE vehicle_id = ${vehicle.vehicle_id}
+                          AND (source IS NULL OR source = 'unknown')
+                          AND direction = 'RECEIVED'
+                          AND "read" = false
+                    `;
+                } else {
+                    result = await prisma.$executeRaw`
+                        UPDATE "Communication"
+                        SET "read" = true
+                        WHERE vehicle_id = ${vehicle.vehicle_id}
+                          AND source = ${source}
+                          AND direction = 'RECEIVED'
+                          AND "read" = false
+                    `;
+                }
+
+        console.log('raw update result (rows affected):', result);
+
+        return res.json({ success: true, threadId, updated: Number(result || 0) });
+    } catch (error) {
+        console.error('Mark thread read error:', error.message);
+        return res.status(500).json({ success: false, message: 'Failed to mark thread read.' });
+    }
+}
+
 async function sendAutoReply(req, res) {
     const { threadId, mode = "default" } = req.body || {};
 
@@ -133,7 +200,7 @@ async function sendAutoReply(req, res) {
 
     const replies = {
         emergency: "I am on my way and I am contacting the emergency services now.",
-        blocked: "Okay sorry, I am on my way!",
+        blocked: "Hey, sorry I am on my way!",
         default: "Thank you for reaching out. Your message has been received and an automated response has been sent.",
     };
 
@@ -157,20 +224,9 @@ async function sendAutoReply(req, res) {
         // try to extract source from threadId so the reply is stored on the same thread
         let source = null;
         try {
-            const possibleCategories = ['-emergency', '-blocked', '-message'];
-            let categorySuffix = null;
-
-            for (const s of possibleCategories) {
-                if (threadId.endsWith(s)) {
-                    categorySuffix = s;
-                    break;
-                }
-            }
-
-            if (categorySuffix) {
-                const prefix = `vehicle-${vehicle.vehicle_id}-`;
-                const middle = threadId.slice(prefix.length, threadId.length - categorySuffix.length);
-                // decodeURIComponent may throw if malformed, so guard
+            const prefix = `vehicle-${vehicle.vehicle_id}-`;
+            if (threadId && threadId.startsWith(prefix)) {
+                const middle = threadId.slice(prefix.length);
                 try {
                     source = decodeURIComponent(middle) || null;
                 } catch (e) {
@@ -210,4 +266,5 @@ async function sendAutoReply(req, res) {
 module.exports = {
     getMessages,
     sendAutoReply,
+    markThreadRead,
 };

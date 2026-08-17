@@ -230,6 +230,7 @@ app.post('/api/qr/:token/message', async (req, res) => {
         });
 
         if (!vehicle) {
+            console.warn('QR post message: token not found', token?.slice?.(0, 8) || token);
             return res.status(404).json({ success: false, message: 'QR code not found.' });
         }
 
@@ -238,6 +239,7 @@ app.post('/api/qr/:token/message', async (req, res) => {
         // Attempt to derive source from Authorization header (if visitor is logged in)
         let sourceValue = null;
         try {
+            console.log('QR POST incoming. headers authorization:', !!req.headers.authorization, 'body from:', !!from);
             const authHeader = req.headers.authorization;
             if (authHeader && authHeader.startsWith('Bearer ')) {
                 const tokenString = authHeader.slice(7);
@@ -335,9 +337,10 @@ app.post('/api/qr/:token/message', async (req, res) => {
             },
         });
 
+        console.log('QR message recorded', { vehicle_id: vehicle.vehicle_id, type, source: sourceValue });
         return res.json({ success: true, message: 'Message recorded.' });
     } catch (error) {
-        console.error('QR post message error:', error.message);
+        console.error('QR post message error:', error.message, error.stack);
         return res.status(500).json({ success: false, message: 'Failed to record message.' });
     }
 });

@@ -58,6 +58,7 @@ model Communication {
   direction        CommunicationDirection
   source           String?          @db.VarChar(255)
   message          String?
+  read             Boolean          @default(false)
   created_at       DateTime         @default(now())
 
   vehicle Vehicle @relation(fields: [vehicle_id], references: [vehicle_id], onDelete: Cascade, onUpdate: Cascade)
