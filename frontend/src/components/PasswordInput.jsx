@@ -28,12 +28,21 @@ export default function PasswordInput({
   inputClassName = '',
   label = 'Show password',
   hideLabel = 'Hide password',
+  leadingIcon = false,
   ...rest
 }) {
   const [visible, setVisible] = useState(false);
 
   return (
-    <div className="input-with-icon">
+    <div className={`input-with-icon ${leadingIcon ? 'has-leading-icon' : ''}`}>
+      {leadingIcon && (
+        <span className="input-leading-icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <rect x="5" y="11" width="14" height="10" rx="2" />
+            <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+          </svg>
+        </span>
+      )}
       <input
         id={id}
         className={inputClassName}

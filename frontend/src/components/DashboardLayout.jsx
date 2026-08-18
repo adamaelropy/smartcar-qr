@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import BrandMark from './BrandMark';
 import { useAuth } from '../context/AuthContext';
 import { fetchMessages } from '../services/api';
 
@@ -83,6 +84,7 @@ function DashboardLayout() {
       <header className="dashboard-nav-wrap">
         <nav className="dashboard-nav page-shell" aria-label="Main navigation">
           <NavLink to="/home" className="dashboard-brand">
+            <BrandMark size={32} />
             SmartCar QR
           </NavLink>
 

@@ -28,6 +28,23 @@
   letter-spacing: -0.03em;
 }
 
+.auth-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  margin: 0 0 0.45rem;
+  color: var(--text-h);
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 1.55rem;
+  letter-spacing: -0.03em;
+}
+
+.auth-brand:hover {
+  color: var(--text-h);
+}
+
 .auth-subtitle {
   margin: 0 0 1.75rem;
   text-align: center;
@@ -117,6 +134,19 @@
 .input-with-icon input {
   width: 100%;
   padding-right: 2.75rem;
+}
+
+.input-with-icon.has-leading-icon input {
+  padding-left: 2.6rem;
+}
+
+.input-leading-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  display: inline-flex;
 }
 
 .input-with-icon input[type='password']::-ms-reveal,

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { login as loginRequest } from '../services/api';
 import PasswordInput from '../components/PasswordInput';
+import BrandMark from '../components/BrandMark';
 import '../styles/auth.css';
 
 function Login() {
@@ -48,7 +49,10 @@ function Login() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <h1>SmartCar QR</h1>
+        <Link to="/" className="auth-brand">
+          <BrandMark />
+          <span>SmartCar QR</span>
+        </Link>
         <p className="auth-subtitle">Sign in to your account</p>
 
         <form className="auth-form" onSubmit={handleSubmit}>
