@@ -52,6 +52,9 @@ function ScannedQR() {
   const [sending, setSending] = useState(false);
   const [sentMessage, setSentMessage] = useState('');
   const [sendError, setSendError] = useState(false);
+  const [messageFeedback, setMessageFeedback] = useState('');
+  const [emergencySending, setEmergencySending] = useState(false);
+  const [emergencyFeedback, setEmergencyFeedback] = useState('');
   const [messageMode, setMessageMode] = useState('auto');
   const [fromValue] = useState(() => getSenderIdentity(user));
 
@@ -197,167 +200,45 @@ function ScannedQR() {
 
   return (
     <main className="page-shell qr-scan-page">
-      <section className="surface-card qr-scan-card">
-        <p className="eyebrow">Scanned QR</p>
-        <h1>SmartCar QR</h1>
-        <h2>Contact Vehicle Owner</h2>
-        <p className="page-description">
-          Choose how you want to reach the vehicle owner or emergency contact.
+      <section className="surface-card qr-public-card">
+        <div className="qr-public-header">
+          <p className="qr-public-brand">
+            <span className="qr-public-brand__dot" aria-hidden="true" />
+            VEHICLE CONTACT PORTAL
+          </p>
+          <h1 className="qr-public-vehicle-name">{vehicle?.car_name || 'SmartCar QR'}</h1>
+        </div>
+
+        <p className="qr-public-subtitle">
+          Plate: <strong>{vehicle?.plate_number || 'N/A'}</strong> • Reach the vehicle owner privately or alert their emergency contact.
         </p>
 
-        <div className="action-grid">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input
-                  type="radio"
-                  name="messageMode"
-                  value="auto"
-                  checked={messageMode === 'auto'}
-                  onChange={() => setMessageMode('auto')}
-                />
-                Send automated message
-              </label>
+        <div className="qr-public-message-panel">
+          <h2>Send Message to Owner</h2>
+          <p>Choose a quick preset or type a customized note</p>
 
-              <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input
-                  type="radio"
-                  name="messageMode"
-                  value="custom"
-                  checked={messageMode === 'custom'}
-                  onChange={() => setMessageMode('custom')}
-                />
-                Send custom message
-              </label>
-            </div>
-
-            {messageMode === 'custom' && (
-              <textarea
-                placeholder="Type a short message to the owner..."
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                rows={4}
-                style={{ minWidth: 320 }}
+          <div className="qr-option-row" role="radiogroup" aria-label="Message mode">
+            <label className={`qr-option ${messageMode === 'auto' ? 'is-selected' : ''}`}>
+              <input
+                type="radio"
+                name="messageMode"
+                value="auto"
+                checked={messageMode === 'auto'}
+                onChange={() => setMessageMode('auto')}
               />
-            )}
+              <span>Preset (Blocked Vehicle)</span>
+            </label>
 
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                type="button"
-                onClick={async () => {
-                  const senderName = (user && user.username) ? user.username : fromValue;
-                  const messageToSend =
-                    messageMode === 'auto'
-                      ? `Hello, you blocked my car in the parking please come and move it`
-                      : messageText;
-
-                  if (!messageToSend || !messageToSend.trim()) return;
-
-                  setSending(true);
-                  setSendError(false);
-                  try {
-                    const { ok, data } = await postQrMessage(
-                      token,
-                      { type: 'MESSAGE', message: messageToSend, senderName, from: fromValue },
-                      authToken,
-                    );
-
-                    if (ok) {
-                      setSentMessage('Message sent');
-                      setSendError(false);
-                      setMessageText('');
-                    } else {
-                      setSendError(true);
-                      setSentMessage(data?.message || 'Failed to send message');
-                    }
-                  } catch (err) {
-                    setSendError(true);
-                    setSentMessage('Failed to send message');
-                  } finally {
-                    setSending(false);
-                    setTimeout(() => {
-                      setSentMessage('');
-                      setSendError(false);
-                    }, 5000);
-                  }
-                }}
-                disabled={sending}
-              >
-                {sending ? 'Sending…' : 'Send Message'}
-              </button>
-            </div>
-
-            {sentMessage && (
-              <p className={`state-message${sendError ? ' state-message--error' : ''}`}>{sentMessage}</p>
-            )}
-          </div>
-
-          {/* Toggle buttons instead of radios */}
-          <div className="scan-toggle-group" role="group" aria-label="Message type">
-            <button
-              type="button"
-              className={`scan-toggle-btn ${messageMode === 'auto' ? 'is-active' : ''}`}
-              onClick={() => setMessageMode('auto')}
-            >
-              Preset (Blocked Vehicle)
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                setSending(true);
-                setSentMessage('');
-                setSendError(false);
-
-                const getPosition = () =>
-                  new Promise((resolve, reject) => {
-                    if (!navigator.geolocation) return reject(new Error('Geolocation not supported'));
-                    navigator.geolocation.getCurrentPosition(
-                      (pos) => resolve(pos.coords),
-                      (err) => reject(err),
-                      { enableHighAccuracy: true, timeout: 10000 }
-                    );
-                  });
-
-                try {
-                  const coords = await getPosition();
-                  const lat = coords.latitude;
-                  const lng = coords.longitude;
-                  const mapLink = `https://maps.google.com/?q=${lat},${lng}`;
-                  const timestamp = new Date().toISOString();
-                  const visitorInfo = (navigator && navigator.userAgent) || 'visitor';
-                  const senderName = (user && user.username) ? user.username : fromValue;
-                  const base = 'This vehicle got into an accident please head to this location asap';
-                  const message = `${base} ${mapLink} (reported at ${timestamp} by ${visitorInfo})`;
-
-                  const { ok, data } = await postQrMessage(
-                    token,
-                    { type: 'EMERGENCY', message, location: { lat, lng }, timestamp, senderName, from: fromValue },
-                    authToken,
-                  );
-
-                  if (ok) {
-                    setSendError(false);
-                    setSentMessage('Message recorded for vehicle owner');
-                  } else {
-                    setSendError(true);
-                    setSentMessage(data?.message || 'Failed to notify vehicle owner');
-                  }
-                } catch (err) {
-                  console.error('Emergency notify failed', err);
-                  setSendError(true);
-                  setSentMessage('Failed to get location or notify vehicle owner');
-                } finally {
-                  setSending(false);
-                  setTimeout(() => setSentMessage(''), 5000);
-                }
-              }}
-              disabled={sending}
-            >
-              Custom Message
-            </button>
-            {sentMessage && (
-              <p className={`state-message${sendError ? ' state-message--error' : ''}`}>{sentMessage}</p>
-            )}
+            <label className={`qr-option ${messageMode === 'custom' ? 'is-selected' : ''}`}>
+              <input
+                type="radio"
+                name="messageMode"
+                value="custom"
+                checked={messageMode === 'custom'}
+                onChange={() => setMessageMode('custom')}
+              />
+              <span>Custom Message</span>
+            </label>
           </div>
 
           {messageMode === 'custom' && (
@@ -366,27 +247,26 @@ function ScannedQR() {
               placeholder="Type a brief message to the vehicle owner..."
               value={messageText}
               onChange={(e) => setMessageText(e.target.value)}
-              rows={3}
+              rows={4}
             />
           )}
 
           <button
             type="button"
-            className="btn btn-primary scan-send-btn"
+            className="btn btn-primary qr-send-btn"
             onClick={handleSendMessage}
             disabled={sending}
           >
             {sending ? 'Sending...' : 'Send Message'}
           </button>
 
-          {messageFeedback && (
-            <p className={messageFeedback.includes('Failed') ? 'scan-feedback scan-feedback--error' : 'scan-feedback scan-feedback--success'} role="status">
-              {messageFeedback}
+          {sentMessage && (
+            <p className={`scan-feedback${sendError ? ' scan-feedback--error' : ' scan-feedback--success'}`} role="status">
+              {sentMessage}
             </p>
           )}
         </div>
 
-        {/* Emergency Alert Section */}
         <div className="emergency-box">
           <h3 className="emergency-box__title">Emergency Assistance</h3>
           <p className="emergency-box__desc">
