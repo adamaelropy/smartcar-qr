@@ -19,6 +19,10 @@ model User {
   vehicle           Vehicle?
   emergencyContacts EmergencyContact[]
   passwordResets    PasswordReset[]
+  conversationsA    Conversation[]        @relation("ConversationParticipantA")
+  conversationsB    Conversation[]        @relation("ConversationParticipantB")
+  sentMessages      ConversationMessage[] @relation("ConversationMessageSender")
+  receivedMessages  ConversationMessage[] @relation("ConversationMessageRecipient")
 }
 
 model Vehicle {
@@ -64,6 +68,41 @@ model Communication {
   vehicle Vehicle @relation(fields: [vehicle_id], references: [vehicle_id], onDelete: Cascade, onUpdate: Cascade)
 }
 
+model Conversation {
+  conversation_id   BigInt                @id
+  participant_a_id  Int
+  participant_b_id  Int
+  created_at        DateTime              @default(now())
+  updated_at        DateTime              @updatedAt
+  last_message_at   DateTime              @default(now())
+  participantA      User                  @relation("ConversationParticipantA", fields: [participant_a_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  participantB      User                  @relation("ConversationParticipantB", fields: [participant_b_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  messages          ConversationMessage[]
+
+  @@unique([participant_a_id, participant_b_id])
+  @@index([participant_a_id])
+  @@index([participant_b_id])
+  @@index([last_message_at])
+}
+
+model ConversationMessage {
+  message_id       BigInt       @id
+  conversation_id  BigInt
+  sender_id        Int
+  recipient_id     Int
+  body             String       @db.Text
+  kind             MessageKind  @default(TEXT)
+  read_at          DateTime?
+  created_at       DateTime     @default(now())
+  conversation     Conversation @relation(fields: [conversation_id], references: [conversation_id], onDelete: Cascade, onUpdate: Cascade)
+  sender           User         @relation("ConversationMessageSender", fields: [sender_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  recipient        User         @relation("ConversationMessageRecipient", fields: [recipient_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([conversation_id, created_at])
+  @@index([recipient_id, read_at])
+  @@index([sender_id, created_at])
+}
+
 model PasswordReset {
   reset_id   Int      @id @default(autoincrement())
   user_id    Int
@@ -105,4 +144,9 @@ enum CommunicationType {
 enum CommunicationDirection {
   SENT
   RECEIVED
+}
+
+enum MessageKind {
+  TEXT
+  EMERGENCY
 }

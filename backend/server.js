@@ -11,6 +11,7 @@ const registrationRoutes = require("./routes/registration.routes");
 const messagesRoutes = require("./routes/messages.routes");
 const usersRoutes = require("./routes/users.routes");
 const { authenticate } = require("./middleware/auth.middleware");
+const { createConversationMessage, getOrCreateConversation } = require("./controllers/messages.controller");
 
 const app = express();
 // Disable ETag to avoid 304 responses for dynamic API data
@@ -226,7 +227,7 @@ app.post('/api/qr/:token/message', async (req, res) => {
     try {
         const vehicle = await prisma.vehicle.findUnique({
             where: { qr_token: token },
-            select: { vehicle_id: true },
+            select: { vehicle_id: true, user_id: true },
         });
 
         if (!vehicle) {
@@ -234,10 +235,9 @@ app.post('/api/qr/:token/message', async (req, res) => {
             return res.status(404).json({ success: false, message: 'QR code not found.' });
         }
 
-        const nextId = BigInt(Date.now()) * 1000n + BigInt(Math.floor(Math.random() * 1000));
-
         // Attempt to derive source from Authorization header (if visitor is logged in)
         let sourceValue = null;
+        let authenticatedSenderId = null;
         try {
             console.log('QR POST incoming. headers authorization:', !!req.headers.authorization, 'body from:', !!from);
             const authHeader = req.headers.authorization;
@@ -248,6 +248,7 @@ app.post('/api/qr/:token/message', async (req, res) => {
                     try {
                         const payload = jwt.verify(tokenString, secret);
                         if (payload && (payload.username || payload.userId)) {
+                                    authenticatedSenderId = payload.userId || null;
                                     // Prefer sender's vehicle id when available so threads separate by sender vehicle
                                     try {
                                         const senderVehicle = await prisma.vehicle.findUnique({
@@ -309,6 +310,43 @@ app.post('/api/qr/:token/message', async (req, res) => {
                 sourceValue = from ? String(from) : null;
             }
 
+            const normalizedMessage = String(message || (type === 'CALL' ? 'Call initiated' : 'No message')).trim();
+            const messageKind = type === 'EMERGENCY' ? 'EMERGENCY' : 'TEXT';
+
+            if (
+                authenticatedSenderId &&
+                vehicle.user_id &&
+                authenticatedSenderId !== vehicle.user_id
+            ) {
+                const conversation = await getOrCreateConversation(authenticatedSenderId, vehicle.user_id);
+                await createConversationMessage({
+                    conversationId: conversation.conversation_id,
+                    senderId: authenticatedSenderId,
+                    recipientId: vehicle.user_id,
+                    body: normalizedMessage,
+                    kind: messageKind,
+                });
+
+                console.log("QR message delivered to conversation", {
+                    conversation_id: String(conversation.conversation_id),
+                    sender_id: authenticatedSenderId,
+                    recipient_id: vehicle.user_id,
+                });
+
+                return res.json({
+                    success: true,
+                    message: "Message delivered.",
+                    threadId: String(conversation.conversation_id),
+                });
+            }
+
+            if (authenticatedSenderId && vehicle.user_id && authenticatedSenderId === vehicle.user_id) {
+                return res.status(400).json({
+                    success: false,
+                    message: "You cannot send a message to your own vehicle.",
+                });
+            }
+
             // If still no explicit source (no auth, no `from`), create a pseudo-source
             // based on a fingerprint of the request so different devices map to different threads.
             if (!sourceValue) {
@@ -326,13 +364,15 @@ app.post('/api/qr/:token/message', async (req, res) => {
                 }
             }
 
+        const nextId = BigInt(Date.now()) * 1000n + BigInt(Math.floor(Math.random() * 1000));
+
         await prisma.communication.create({
             data: {
                 communication_id: nextId,
                 vehicle_id: vehicle.vehicle_id,
                 type: type === 'CALL' ? 'CALL' : 'MESSAGE',
                 direction: 'RECEIVED',
-                message: String(message || (type === 'CALL' ? 'Call initiated' : 'No message')),
+                message: normalizedMessage,
                 source: sourceValue || null,
             },
         });

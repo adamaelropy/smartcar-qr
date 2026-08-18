@@ -33,6 +33,7 @@ function DashboardLayout() {
 
         const threads = Array.isArray(data?.messages) ? data.messages : [];
         const totalUnread = threads.reduce((sum, t) => sum + (t.unread || 0), 0);
+        const newestUnreadThread = threads.find((thread) => (thread.unread || 0) > 0);
 
         // first load: set baseline without notifying
         if (lastUnread === 0) {
@@ -44,8 +45,10 @@ function DashboardLayout() {
         if (totalUnread > lastUnread && location.pathname !== '/messages') {
           setActiveNotification({
             title: 'New Vehicle Message',
-            subtitle: `You have ${totalUnread - lastUnread} new message(s)`,
-            thread: '/messages',
+            subtitle: newestUnreadThread
+              ? `${newestUnreadThread.senderName}: ${newestUnreadThread.latestIncomingText || newestUnreadThread.preview}`
+              : `You have ${totalUnread - lastUnread} new message(s)`,
+            thread: newestUnreadThread ? `/messages?thread=${encodeURIComponent(newestUnreadThread.id)}` : '/messages',
           });
         }
 

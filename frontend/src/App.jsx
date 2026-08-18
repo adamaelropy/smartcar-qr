@@ -136,18 +136,24 @@ function ScannedQR() {
     setSending(true);
     setMessageFeedback('');
     try {
-      const headers = { 'Content-Type': 'application/json' };
-      if (authToken) headers.Authorization = `Bearer ${authToken}`;
+      const response = await postQrMessage(
+        token,
+        { type: 'MESSAGE', message: messageToSend, senderName, from: fromValue },
+        authToken,
+      );
 
-      await fetch(`/api/qr/${encodeURIComponent(token)}/message`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ type: 'MESSAGE', message: messageToSend, senderName, from: fromValue }),
-      });
-      setMessageFeedback('Message sent successfully!');
+      if (!response.ok) {
+        throw new Error(response.data?.message || 'Failed to send message.');
+      }
+
+      setMessageFeedback(
+        response.data?.threadId
+          ? 'Message sent successfully. A chat has been created in Messages.'
+          : 'Message sent successfully!',
+      );
       setMessageText('');
-    } catch {
-      setMessageFeedback('Failed to send message. Please try again.');
+    } catch (error) {
+      setMessageFeedback(error.message || 'Failed to send message. Please try again.');
     } finally {
       setSending(false);
       setTimeout(() => setMessageFeedback(''), 4000);
@@ -179,14 +185,15 @@ function ScannedQR() {
       const base = 'This vehicle got into an accident please head to this location asap';
       const message = `${base} ${mapLink} (reported at ${timestamp} by ${visitorInfo})`;
 
-      const headers = { 'Content-Type': 'application/json' };
-      if (authToken) headers.Authorization = `Bearer ${authToken}`;
+      const response = await postQrMessage(
+        token,
+        { type: 'EMERGENCY', message, location: { lat, lng }, timestamp, senderName, from: fromValue },
+        authToken,
+      );
 
-      await fetch(`/api/qr/${encodeURIComponent(token)}/message`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ type: 'EMERGENCY', message, location: { lat, lng }, timestamp, senderName, from: fromValue }),
-      });
+      if (!response.ok) {
+        throw new Error(response.data?.message || 'Failed to notify contact.');
+      }
 
       setEmergencyFeedback('Emergency relative notified with location!');
     } catch (err) {

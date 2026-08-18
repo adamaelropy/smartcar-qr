@@ -2632,6 +2632,81 @@ html[data-theme='dark'] .about-explainer__car-body {
   gap: 0.5rem;
 }
 
+.messages-sidebar {
+  min-height: 620px;
+}
+
+.message-thread {
+  border-radius: 16px;
+}
+
+.message-thread__meta {
+  margin: 0.4rem 0 0.55rem;
+  justify-content: space-between;
+}
+
+.messages-chat-panel {
+  min-height: 620px;
+}
+
+.messages-list {
+  gap: 0.85rem;
+  padding-right: 0.35rem;
+}
+
+.message-bubble {
+  border-radius: 18px;
+}
+
+.message-bubble--mine {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #ffffff;
+}
+
+.message-bubble--mine p,
+.message-bubble--mine span {
+  color: #ffffff;
+}
+
+.message-bubble--mine span {
+  opacity: 0.82;
+}
+
+.message-bubble--theirs {
+  border: 1px solid var(--border);
+}
+
+.message-composer {
+  width: 100%;
+  min-height: 88px;
+  resize: vertical;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+.message-composer:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.message-reply-panel {
+  gap: 0.75rem;
+}
+
+.message-reply-panel__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.message-reply-panel__actions .btn {
+  min-width: 9rem;
+}
+
 /* --------------------------------------------------------------------------
    13. Responsive Breakpoints
    -------------------------------------------------------------------------- */
@@ -2661,6 +2736,11 @@ html[data-theme='dark'] .about-explainer__car-body {
   .help-topics {
     border-right: none;
     border-bottom: 1px solid var(--border);
+  }
+
+  .messages-sidebar,
+  .messages-chat-panel {
+    min-height: auto;
   }
 }
 
@@ -2697,6 +2777,14 @@ html[data-theme='dark'] .about-explainer__car-body {
   }
 
   .service-filter-field {
+    width: 100%;
+  }
+
+  .message-reply-panel__actions {
+    flex-direction: column;
+  }
+
+  .message-reply-panel__actions .btn {
     width: 100%;
   }
 }

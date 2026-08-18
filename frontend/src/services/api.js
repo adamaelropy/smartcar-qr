@@ -150,14 +150,18 @@ export async function fetchMessages(token) {
   return parseResponse(response);
 }
 
-export async function sendAutoReply(token, threadId, mode = 'default') {
-  const response = await fetch(buildApiUrl('/messages/reply'), {
+export async function sendMessage(token, threadId, message, mode = 'default') {
+  const response = await fetch(buildApiUrl('/messages/send'), {
     method: 'POST',
     headers: authHeaders(token),
-    body: JSON.stringify({ threadId, mode }),
+    body: JSON.stringify({ threadId, message, mode }),
   });
 
   return parseResponse(response);
+}
+
+export async function sendAutoReply(token, threadId, mode = 'default') {
+  return sendMessage(token, threadId, '', mode);
 }
 
 export async function markThreadRead(token, threadId) {
