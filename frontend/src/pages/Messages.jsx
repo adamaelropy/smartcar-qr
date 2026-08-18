@@ -89,24 +89,31 @@ function Messages() {
   }, [selectedThreadId, selectedThread?.messages?.length]);
 
   useEffect(() => {
-    if (!selectedThreadId) return;
+    if (!selectedThreadId || !token) return;
 
-    setThreads((currentThreads) =>
-      currentThreads.map((thread) => (thread.id === selectedThreadId ? { ...thread, unread: 0 } : thread)),
-    );
+    let cancelled = false;
 
-    // mark thread read on the server so subsequent polls reflect the change
-    (async () => {
+    const markRead = async () => {
       try {
-        if (token && selectedThreadId) {
-          const { ok } = await (await import('../services/api')).markThreadRead(token, selectedThreadId);
-          // no-op if not ok; local UI already updated
-        }
-      } catch (e) {
+        const { ok } = await (await import('../services/api')).markThreadRead(token, selectedThreadId);
+        if (!ok || cancelled) return;
+
+        setThreads((currentThreads) =>
+          currentThreads.map((thread) =>
+            thread.id === selectedThreadId ? { ...thread, unread: 0 } : thread,
+          ),
+        );
+      } catch {
         // ignore
       }
-    })();
-  }, [selectedThreadId]);
+    };
+
+    markRead();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedThreadId, token]);
 
   const handleAutoReply = async () => {
     if (!selectedThread || !token || sendingReply) return;

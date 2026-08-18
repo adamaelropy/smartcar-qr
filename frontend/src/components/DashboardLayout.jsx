@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { fetchMessages } from '../services/api';
 
 function DashboardLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { token, isAuthenticated } = useAuth();
   const [activeNotification, setActiveNotification] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -40,7 +41,7 @@ function DashboardLayout() {
           return;
         }
 
-        if (totalUnread > lastUnread) {
+        if (totalUnread > lastUnread && location.pathname !== '/messages') {
           setActiveNotification({
             title: 'New Vehicle Message',
             subtitle: `You have ${totalUnread - lastUnread} new message(s)`,
@@ -63,7 +64,7 @@ function DashboardLayout() {
       mounted = false;
       window.clearInterval(id);
     };
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, location.pathname]);
 
   const closeNotification = () => setActiveNotification(null);
 
@@ -73,6 +74,8 @@ function DashboardLayout() {
       navigate(activeNotification.thread);
     }
   };
+
+  const isMessagesRoute = location.pathname === '/messages';
 
   return (
     <div className="dashboard-shell">
@@ -130,7 +133,7 @@ function DashboardLayout() {
 
       <Outlet />
 
-      {activeNotification && (
+      {!isMessagesRoute && activeNotification && (
         <div className="message-toast" role="alert">
           <div className="message-toast__content">
             <span className="message-toast__badge">Alert</span>

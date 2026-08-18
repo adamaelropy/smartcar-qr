@@ -8,6 +8,69 @@ function classifyMessage(msg) {
     return 'message';
 }
 
+async function resolveUserVehicleMap(usernameList, userIdList) {
+    const map = new Map();
+
+    if (usernameList.length > 0) {
+        const users = await prisma.user.findMany({
+            where: { username: { in: usernameList } },
+            select: {
+                username: true,
+                vehicle: { select: { vehicle_id: true } },
+            },
+        });
+
+        users.forEach((user) => {
+            if (user?.vehicle?.vehicle_id) {
+                map.set(user.username, String(user.vehicle.vehicle_id));
+            }
+        });
+    }
+
+    if (userIdList.length > 0) {
+        const users = await prisma.user.findMany({
+            where: { user_id: { in: userIdList } },
+            select: {
+                user_id: true,
+                vehicle: { select: { vehicle_id: true } },
+            },
+        });
+
+        users.forEach((user) => {
+            if (user?.vehicle?.vehicle_id) {
+                map.set(`userId:${user.user_id}`, String(user.vehicle.vehicle_id));
+            }
+        });
+    }
+
+    return map;
+}
+
+function canonicalCounterpartKey(currentVehicleId, item, vehicleLookupMap) {
+    if (item.vehicle_id !== currentVehicleId) {
+        return `vehicle:${item.vehicle_id}`;
+    }
+
+    const source = item.source || 'unknown';
+    if (!source || source === 'unknown') return `vehicle:${currentVehicleId}`;
+    if (source.startsWith('vehicle:')) return source;
+
+    if (source.startsWith('user:')) {
+        const username = decodeURIComponent(source.slice('user:'.length));
+        const mappedVehicle = vehicleLookupMap.get(username);
+        if (mappedVehicle) return `vehicle:${mappedVehicle}`;
+        return source;
+    }
+
+    if (source.startsWith('userId:')) {
+        const mappedVehicle = vehicleLookupMap.get(source);
+        if (mappedVehicle) return `vehicle:${mappedVehicle}`;
+        return source;
+    }
+
+    return source;
+}
+
 async function getMessages(req, res) {
     const userId = req.user.userId;
 
@@ -81,19 +144,31 @@ async function getMessages(req, res) {
             },
         });
 
+        const usernameList = [...new Set(
+            communications
+                .map((item) => (item.source || '').startsWith('user:') ? item.source.slice('user:'.length) : null)
+                .filter(Boolean),
+        )];
+        const userIdList = [...new Set(
+            communications
+                .map((item) => (item.source || '').startsWith('userId:') ? Number((item.source || '').slice('userId:'.length)) : null)
+                .filter((id) => Number.isInteger(id) && id > 0),
+        )];
+        const userVehicleMap = await resolveUserVehicleMap(usernameList, userIdList);
+
         const groupMap = new Map();
         const vehicleIdsToLookup = new Set();
 
         communications.forEach((item) => {
             const isOwner = myVehicleId && item.vehicle_id === myVehicleId;
-            const sourceKey = item.source || 'unknown';
+            const sourceKey = canonicalCounterpartKey(myVehicleId, item, userVehicleMap);
             const groupKey = isOwner
                 ? `owner_${myVehicleId}_${sourceKey}`
                 : `visitor_${item.vehicle_id}_${sourceKey}`;
 
-            if (isOwner && sourceKey.startsWith('vehicle:')) {
-                const vId = Number(sourceKey.split(':')[1]);
-                if (vId) vehicleIdsToLookup.add(vId);
+            const counterpartVehicleId = sourceKey.startsWith('vehicle:') ? Number(sourceKey.split(':')[1]) : null;
+            if (counterpartVehicleId) {
+                vehicleIdsToLookup.add(counterpartVehicleId);
             }
 
             if (!groupMap.has(groupKey)) {
@@ -101,7 +176,7 @@ async function getMessages(req, res) {
                     groupKey,
                     isOwner,
                     sourceKey,
-                    targetVehicleId: item.vehicle_id,
+                    targetVehicleId: counterpartVehicleId || item.vehicle_id,
                     targetVehicle: item.vehicle,
                     items: [],
                 });
@@ -298,18 +373,35 @@ async function sendAutoReply(req, res) {
             : (currentUser.username ? `user:${currentUser.username}` : `userId:${currentUser.user_id}`);
 
         let targetVehicleId = myVehicleId;
-        let targetSource = threadId;
-        let direction = 'SENT';
+        let counterpartKey = mySource;
 
         const threadPrefix = 'vehicle-';
         if (threadId && typeof threadId === 'string' && threadId.startsWith(threadPrefix)) {
             const match = /^vehicle-(\d+)-(.+)$/.exec(threadId);
             if (match) {
-                targetVehicleId = Number(match[1]);
                 try {
-                    targetSource = decodeURIComponent(match[2]);
+                    counterpartKey = decodeURIComponent(match[2]);
                 } catch (e) {
-                    targetSource = match[2];
+                    counterpartKey = match[2];
+                }
+
+                if (counterpartKey.startsWith('vehicle:')) {
+                    targetVehicleId = Number(counterpartKey.split(':')[1]);
+                } else if (counterpartKey.startsWith('user:')) {
+                    const counterpartUser = await prisma.user.findUnique({
+                        where: { username: counterpartKey.slice('user:'.length) },
+                        select: { vehicle: { select: { vehicle_id: true } } },
+                    });
+                    targetVehicleId = counterpartUser?.vehicle?.vehicle_id || myVehicleId;
+                } else if (counterpartKey.startsWith('userId:')) {
+                    const normalizedId = Number(counterpartKey.slice('userId:'.length));
+                    if (Number.isInteger(normalizedId) && normalizedId > 0) {
+                        const counterpartUser = await prisma.user.findUnique({
+                            where: { user_id: normalizedId },
+                            select: { vehicle: { select: { vehicle_id: true } } },
+                        });
+                        targetVehicleId = counterpartUser?.vehicle?.vehicle_id || myVehicleId;
+                    }
                 }
             }
         }
@@ -328,9 +420,9 @@ async function sendAutoReply(req, res) {
                 communication_id: nextId,
                 vehicle_id: targetVehicleId,
                 type: "MESSAGE",
-                direction,
+                direction: 'RECEIVED',
                 message: replyText,
-                source: targetSource ? String(targetSource) : mySource,
+                source: mySource,
             },
         });
 
