@@ -12,7 +12,6 @@ function Messages() {
   const [selectedThreadId, setSelectedThreadId] = useState(queryThread || null);
   const [loading, setLoading] = useState(true);
   const [sendingReply, setSendingReply] = useState(false);
-  const [composerText, setComposerText] = useState('');
   const [sendError, setSendError] = useState('');
 
   useEffect(() => {
@@ -123,19 +122,14 @@ function Messages() {
     };
   }, [selectedThreadId, token]);
 
-  const handleSend = async (mode = 'default') => {
+  const handleSendAutoReply = async () => {
     if (!selectedThread || !token || sendingReply) return;
-
-    const text = composerText.trim();
-    if (!text) {
-      setSendError('Type a message first.');
-      return;
-    }
 
     try {
       setSendingReply(true);
       setSendError('');
-      const { ok, data } = await sendMessage(token, selectedThread.id, text, mode);
+      const text = "Ok! I'm coming!";
+      const { ok, data } = await sendMessage(token, selectedThread.id, text, 'default');
 
       if (!ok) {
         setSendError(data?.message || 'Unable to send message.');
@@ -158,14 +152,13 @@ function Messages() {
                     text,
                     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                     read: false,
-                    kind: mode === 'emergency' ? 'EMERGENCY' : 'TEXT',
+                    kind: 'TEXT',
                   },
                 ],
               }
             : thread,
         ),
       );
-      setComposerText('');
     } finally {
       setSendingReply(false);
     }
@@ -230,26 +223,10 @@ function Messages() {
             </div>
 
             <div className="message-reply-panel" ref={replyPanelRef}>
-              <textarea
-                className="message-composer"
-                value={composerText}
-                onChange={(event) => setComposerText(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.shiftKey) {
-                    event.preventDefault();
-                    handleSend('default');
-                  }
-                }}
-                rows={3}
-                placeholder={`Message ${selectedThread.senderName}...`}
-              />
               {sendError && <p className="state-message state-message--error">{sendError}</p>}
               <div className="message-reply-panel__actions">
-                <button type="button" className="btn btn-secondary" onClick={() => handleSend('default')} disabled={sendingReply}>
-                  {sendingReply ? 'Sending...' : 'Send message'}
-                </button>
-                <button type="button" className="btn btn-danger" onClick={() => handleSend('emergency')} disabled={sendingReply}>
-                  {sendingReply ? 'Sending...' : 'Send as emergency'}
+                <button type="button" className="btn btn-primary" onClick={handleSendAutoReply} disabled={sendingReply}>
+                  {sendingReply ? 'Sending...' : "Ok! I'm coming!"}
                 </button>
               </div>
             </div>

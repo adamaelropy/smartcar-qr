@@ -47,12 +47,10 @@ async function createConversationMessage({ conversationId, senderId, recipientId
 async function getOrCreateConversation(userId, otherUserId) {
     const [participantAId, participantBId] = normalizeConversationPair(userId, otherUserId);
 
-    let conversation = await prisma.conversation.findUnique({
+    let conversation = await prisma.conversation.findFirst({
         where: {
-            participant_a_id_participant_b_id: {
-                participant_a_id: participantAId,
-                participant_b_id: participantBId,
-            },
+            participant_a_id: participantAId,
+            participant_b_id: participantBId,
         },
         select: { conversation_id: true },
     });

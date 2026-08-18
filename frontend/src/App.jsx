@@ -10,7 +10,7 @@ import SignUp from "./pages/SignUp";
 import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
 import Users from "./pages/Users";
-import Landing from "./pages/Landing";
+import Landing from "./pages/landing";
 import { fetchVehicleByQrToken, postQrMessage } from "./services/api";
 import { useAuth } from "./context/AuthContext";
 
@@ -50,8 +50,6 @@ function ScannedQR() {
   const [error, setError] = useState("");
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
-  const [sentMessage, setSentMessage] = useState('');
-  const [sendError, setSendError] = useState(false);
   const [messageFeedback, setMessageFeedback] = useState('');
   const [emergencySending, setEmergencySending] = useState(false);
   const [emergencyFeedback, setEmergencyFeedback] = useState('');
@@ -209,43 +207,32 @@ function ScannedQR() {
     <main className="page-shell qr-scan-page">
       <section className="surface-card qr-public-card">
         <div className="qr-public-header">
-          <p className="qr-public-brand">
-            <span className="qr-public-brand__dot" aria-hidden="true" />
-            VEHICLE CONTACT PORTAL
-          </p>
           <h1 className="qr-public-vehicle-name">{vehicle?.car_name || 'SmartCar QR'}</h1>
         </div>
 
         <p className="qr-public-subtitle">
-          Plate: <strong>{vehicle?.plate_number || 'N/A'}</strong> • Reach the vehicle owner privately or alert their emergency contact.
+          Reach the vehicle owner privately or notify emergency contact support if needed.
         </p>
 
         <div className="qr-public-message-panel">
           <h2>Send Message to Owner</h2>
-          <p>Choose a quick preset or type a customized note</p>
+          <p>Choose the message style that fits your situation.</p>
 
-          <div className="qr-option-row" role="radiogroup" aria-label="Message mode">
-            <label className={`qr-option ${messageMode === 'auto' ? 'is-selected' : ''}`}>
-              <input
-                type="radio"
-                name="messageMode"
-                value="auto"
-                checked={messageMode === 'auto'}
-                onChange={() => setMessageMode('auto')}
-              />
-              <span>Preset (Blocked Vehicle)</span>
-            </label>
-
-            <label className={`qr-option ${messageMode === 'custom' ? 'is-selected' : ''}`}>
-              <input
-                type="radio"
-                name="messageMode"
-                value="custom"
-                checked={messageMode === 'custom'}
-                onChange={() => setMessageMode('custom')}
-              />
-              <span>Custom Message</span>
-            </label>
+          <div className="qr-message-mode-switch" aria-label="Message mode">
+            <button
+              type="button"
+              className={`btn ${messageMode === 'auto' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setMessageMode('auto')}
+            >
+              Automated Message
+            </button>
+            <button
+              type="button"
+              className={`btn ${messageMode === 'custom' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setMessageMode('custom')}
+            >
+              Custom Message
+            </button>
           </div>
 
           {messageMode === 'custom' && (
@@ -258,18 +245,25 @@ function ScannedQR() {
             />
           )}
 
-          <button
-            type="button"
-            className="btn btn-primary qr-send-btn"
-            onClick={handleSendMessage}
-            disabled={sending}
-          >
-            {sending ? 'Sending...' : 'Send Message'}
-          </button>
+          <div className="qr-action-row">
+            <button
+              type="button"
+              className="btn btn-primary qr-send-btn"
+              onClick={handleSendMessage}
+              disabled={sending || (messageMode === 'custom' && !messageText.trim())}
+            >
+              {sending ? 'Sending...' : 'Send Message'}
+            </button>
+          </div>
 
-          {sentMessage && (
-            <p className={`scan-feedback${sendError ? ' scan-feedback--error' : ' scan-feedback--success'}`} role="status">
-              {sentMessage}
+          {messageFeedback && (
+            <p
+              className={`scan-feedback ${
+                messageFeedback.toLowerCase().includes('failed') ? 'scan-feedback--error' : 'scan-feedback--success'
+              }`}
+              role="status"
+            >
+              {messageFeedback}
             </p>
           )}
         </div>

@@ -24,7 +24,8 @@
 .auth-card h1 {
   margin: 0 0 0.35rem;
   text-align: center;
-  font-size: 1.85rem;
+  font-size: 2rem;
+  letter-spacing: -0.03em;
 }
 
 .auth-subtitle {
@@ -160,6 +161,10 @@
   align-items: center;
   justify-content: center;
   font-size: 0.95rem;
+}
+
+.auth-page .auth-card {
+  backdrop-filter: blur(10px);
 }
 
 .auth-error {

@@ -19,6 +19,7 @@ function matchesQuery(service, normalizedQuery) {
 function Home() {
   const { user } = useAuth();
   const [allServices, setAllServices] = useState([]);
+  const [servicesVisible, setServicesVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
@@ -27,6 +28,10 @@ function Home() {
   const [selectedAvailability, setSelectedAvailability] = useState('all');
 
   useEffect(() => {
+    if (!servicesVisible) {
+      return undefined;
+    }
+
     let isMounted = true;
 
     const loadServices = async () => {
@@ -70,7 +75,7 @@ function Home() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [servicesVisible]);
 
   const availableLocations = useMemo(
     () =>
@@ -115,87 +120,104 @@ function Home() {
       <section className="home-card surface-card">
         <div className="home-welcome">
           <h1>Welcome back, {user?.name || user?.username || 'Driver'}</h1>
+          <p className="page-description">Your SmartCar dashboard keeps services, messages, and vehicle access in one place.</p>
         </div>
 
-        <div className="service-toolbar">
-          <div className="service-search">
-            <input
-              type="text"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by service name or location..."
-              aria-label="Search services"
-            />
-          </div>
-
-          <div className="service-filter-row" aria-label="Service filters">
-            <label className="service-filter-field">
-              <span>Service Type</span>
-              <select
-                value={selectedType}
-                onChange={(event) => setSelectedType(event.target.value)}
-              >
-                <option value="all">All Service Types</option>
-                {SERVICE_TYPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="service-filter-field">
-              <span>Location</span>
-              <select
-                value={selectedLocation}
-                onChange={(event) => setSelectedLocation(event.target.value)}
-              >
-                <option value="all">All Locations</option>
-                {availableLocations.map((location) => (
-                  <option key={location} value={location}>
-                    {location}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="service-filter-field">
-              <span>Availability</span>
-              <select
-                value={selectedAvailability}
-                onChange={(event) => setSelectedAvailability(event.target.value)}
-              >
-                <option value="all">All Availability</option>
-                <option value="available">Available Now</option>
-                <option value="unavailable">Unavailable</option>
-              </select>
-            </label>
-          </div>
+        <div className="home-services-toggle">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setServicesVisible((current) => !current)}
+            aria-expanded={servicesVisible}
+            aria-controls="home-services-panel"
+          >
+            {servicesVisible ? 'Hide Services' : 'Show Services'}
+          </button>
         </div>
 
-        {showInitialLoading && (
-          <p className="state-message">Loading verified services...</p>
-        )}
+        {servicesVisible && (
+          <div id="home-services-panel" className="home-services-panel">
+            <div className="service-toolbar">
+              <div className="service-search">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search by service name or location..."
+                  aria-label="Search services"
+                />
+              </div>
 
-        {error && (
-          <p className="state-message state-message--error" role="alert">
-            {error}
-          </p>
-        )}
+              <div className="service-filter-row" aria-label="Service filters">
+                <label className="service-filter-field">
+                  <span>Service Type</span>
+                  <select
+                    value={selectedType}
+                    onChange={(event) => setSelectedType(event.target.value)}
+                  >
+                    <option value="all">All Service Types</option>
+                    {SERVICE_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-        {showEmptyState && (
-          <p className="state-message">No services match your active search filters.</p>
-        )}
+                <label className="service-filter-field">
+                  <span>Location</span>
+                  <select
+                    value={selectedLocation}
+                    onChange={(event) => setSelectedLocation(event.target.value)}
+                  >
+                    <option value="all">All Locations</option>
+                    {availableLocations.map((location) => (
+                      <option key={location} value={location}>
+                        {location}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-        {showNoServicesLoaded && (
-          <p className="state-message">No services currently available.</p>
-        )}
+                <label className="service-filter-field">
+                  <span>Availability</span>
+                  <select
+                    value={selectedAvailability}
+                    onChange={(event) => setSelectedAvailability(event.target.value)}
+                  >
+                    <option value="all">All Availability</option>
+                    <option value="available">Available Now</option>
+                    <option value="unavailable">Unavailable</option>
+                  </select>
+                </label>
+              </div>
+            </div>
 
-        <section className="service-list">
-          {filteredServices.map((service) => (
-            <ServiceCard key={service.service_id} service={service} />
-          ))}
-        </section>
+            {showInitialLoading && (
+              <p className="state-message">Loading verified services...</p>
+            )}
+
+            {error && (
+              <p className="state-message state-message--error" role="alert">
+                {error}
+              </p>
+            )}
+
+            {showEmptyState && (
+              <p className="state-message">No services match your active search filters.</p>
+            )}
+
+            {showNoServicesLoaded && (
+              <p className="state-message">No services currently available.</p>
+            )}
+
+            <section className="service-list">
+              {filteredServices.map((service) => (
+                <ServiceCard key={service.service_id} service={service} />
+              ))}
+            </section>
+          </div>
+        )}
       </section>
     </main>
   );
