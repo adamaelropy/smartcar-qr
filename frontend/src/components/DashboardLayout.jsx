@@ -44,7 +44,7 @@ function DashboardLayout() {
 
         if (totalUnread > lastUnread && location.pathname !== '/messages') {
           setActiveNotification({
-            title: 'New Vehicle Message',
+            title: 'New Message Received',
             subtitle: newestUnreadThread
               ? `${newestUnreadThread.senderName}: ${newestUnreadThread.latestIncomingText || newestUnreadThread.preview}`
               : `You have ${totalUnread - lastUnread} new message(s)`,
@@ -77,8 +77,6 @@ function DashboardLayout() {
       navigate(activeNotification.thread);
     }
   };
-
-  const isMessagesRoute = location.pathname === '/messages';
 
   return (
     <div className="dashboard-shell">
@@ -136,7 +134,7 @@ function DashboardLayout() {
 
       <Outlet />
 
-      {!isMessagesRoute && activeNotification && (
+      {activeNotification && (
         <div className="message-toast" role="alert">
           <div className="message-toast__content">
             <span className="message-toast__badge">Alert</span>

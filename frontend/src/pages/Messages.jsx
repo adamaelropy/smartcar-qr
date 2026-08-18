@@ -204,7 +204,6 @@ function Messages() {
           <section className="messages-chat-panel">
             <div className="messages-chat-header">
               <div>
-                <p className="eyebrow">Conversation</p>
                 <h2>{selectedThread.senderName}</h2>
                 {selectedThread.username && <p className="page-description">@{selectedThread.username}</p>}
               </div>

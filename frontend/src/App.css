@@ -68,6 +68,10 @@
   box-shadow: 0 0 10px var(--accent);
 }
 
+.dashboard-brand::before {
+  display: none;
+}
+
 .dashboard-links {
   display: flex;
   align-items: center;
@@ -1480,6 +1484,12 @@
   gap: 1.25rem;
 }
 
+html[data-theme='dark'] .qr-public-card {
+  background: linear-gradient(180deg, #0f172a 0%, #101a2d 100%);
+  border-color: rgba(148, 163, 184, 0.14);
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.42);
+}
+
 .qr-public-header {
   display: flex;
   flex-direction: column;
@@ -1528,6 +1538,19 @@
   line-height: 1.5;
 }
 
+html[data-theme='dark'] .qr-public-subtitle,
+html[data-theme='dark'] .qr-public-message-panel p,
+html[data-theme='dark'] .emergency-box__desc,
+html[data-theme='dark'] .qr-note {
+  color: #cbd5e1;
+}
+
+html[data-theme='dark'] .qr-public-vehicle-name,
+html[data-theme='dark'] .qr-public-message-panel h2,
+html[data-theme='dark'] .emergency-box__title {
+  color: #f8fafc;
+}
+
 .qr-public-subtitle strong {
   color: #0f172a;
   font-weight: 700;
@@ -1543,6 +1566,12 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+html[data-theme='dark'] .qr-public-message-panel {
+  background: rgba(15, 23, 42, 0.84);
+  border-color: rgba(148, 163, 184, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .qr-public-message-panel h2 {
@@ -1600,6 +1629,12 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+html[data-theme='dark'] .scan-textarea {
+  background: rgba(15, 23, 42, 0.92);
+  border-color: rgba(148, 163, 184, 0.18);
+  color: #f8fafc;
+}
+
 .scan-textarea:focus {
   outline: none;
   border-color: #1f6fe5;
@@ -1616,6 +1651,12 @@
   flex-direction: column;
   gap: 1rem;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
+}
+
+html[data-theme='dark'] .emergency-box {
+  background: rgba(127, 29, 29, 0.18);
+  border-color: rgba(248, 113, 113, 0.26);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .emergency-box__title {
@@ -1646,6 +1687,12 @@
   transition: all 0.18s ease;
 }
 
+html[data-theme='dark'] .emergency-notify-btn {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.24);
+}
+
 .emergency-notify-btn:hover {
   background: rgba(255, 255, 255, 0.56);
   transform: translateY(-1px);
@@ -1670,6 +1717,18 @@
   background: var(--danger-soft);
   border: 1px solid var(--danger-border);
   color: var(--danger-text);
+}
+
+html[data-theme='dark'] .scan-feedback--success {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.22);
+  color: #bbf7d0;
+}
+
+html[data-theme='dark'] .scan-feedback--error {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.22);
+  color: #fecaca;
 }
 
 @media (max-width: 768px) {
@@ -2581,9 +2640,9 @@ html[data-theme='dark'] .about-explainer__car-body {
    -------------------------------------------------------------------------- */
 .message-toast {
   position: fixed;
-  right: 1.75rem;
-  bottom: 1.75rem;
-  z-index: 90;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 1200;
   width: min(380px, calc(100vw - 2rem));
   padding: 1.15rem;
   border-radius: var(--radius-lg);
