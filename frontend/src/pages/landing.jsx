@@ -125,9 +125,6 @@ export default function Landing() {
       <section className="landing-why">
         <p className="landing-why-badge">Why SmartCar QR?</p>
         <h2>Built for Privacy. Designed for Real Life.</h2>
-        <p className="landing-why-sub">
-          SmartCar QR helps you stay connected in the moments that matter, without compromising your personal information.
-        </p>
         <div className="landing-feature-grid">
           {FEATURES.map((feature) => (
             <article key={feature.title} className="landing-feature-card">

@@ -56,10 +56,8 @@ export default function AppearancePicker({ value, onChange }) {
         })}
       </div>
       <div className="appearance-picker__note">
-        <span className="appearance-picker__note-icon" aria-hidden="true">i</span>
         <div>
           <strong>Your preference is saved automatically.</strong>
-          <p>You can change it anytime from this page.</p>
         </div>
       </div>
     </div>

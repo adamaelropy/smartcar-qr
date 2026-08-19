@@ -286,24 +286,26 @@ export default function Profile() {
         <div className="profile-header">
           <div className="profile-title-with-thumb">
             <div>
-              <h1>My Profile</h1>
+              <div className="profile-title-row">
+                <h1>My Profile</h1>
+                {qrToken && (
+                  <button
+                    type="button"
+                    className="profile-qr-thumb"
+                    onClick={openQrModal}
+                    title="Click to view enlarged QR code"
+                    aria-label="View enlarged QR code"
+                  >
+                    <QRCodeCanvas
+                      value={`${window.location.origin}/qr/${qrToken}`}
+                      size={32}
+                      marginSize={0}
+                    />
+                  </button>
+                )}
+              </div>
               <p className="page-description">Manage your account and keep your information secure.</p>
             </div>
-            {qrToken && (
-              <button
-                type="button"
-                className="profile-qr-thumb"
-                onClick={openQrModal}
-                title="Click to view enlarged QR code"
-                aria-label="View enlarged QR code"
-              >
-                <QRCodeCanvas
-                  value={`${window.location.origin}/qr/${qrToken}`}
-                  size={32}
-                  marginSize={0}
-                />
-              </button>
-            )}
           </div>
           <div className="profile-header__visual" aria-hidden="true">
             <img src="/images/hero-profile.png" alt="" />
@@ -574,15 +576,9 @@ export default function Profile() {
 
             {!editingSection && section === 'password' && (
               <section className="profile-section">
-                <div className="profile-section-header profile-section-header--with-icon">
-                  <div className="profile-section-icon" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                      <path d="M12 3l8 4v6c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7l8-4z" />
-                    </svg>
-                  </div>
+                <div className="profile-section-header">
                   <div>
                     <h2>Password &amp; Security</h2>
-                    <p className="page-description">Update your password regularly to keep your account secure.</p>
                   </div>
                 </div>
                 <form className="profile-password-form" onSubmit={handleChangePassword}>
@@ -632,9 +628,6 @@ export default function Profile() {
                     />
                   </label>
                   <div className="password-requirements">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                      <path d="M12 3l8 4v6c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7l8-4z" />
-                    </svg>
                     <div>
                       <strong>Password must contain:</strong>
                       <ul>
@@ -645,11 +638,7 @@ export default function Profile() {
                         <li>1 special character</li>
                       </ul>
                     </div>
-                  </div>
-                  {passwordError && <p className="state-message state-message--error">{passwordError}</p>}
-                  {passwordSuccess && <p className="profile-success">{passwordSuccess}</p>}
-                  <div className="profile-form-actions">
-                    <button type="submit" className="btn btn-primary" disabled={passwordSaving}>
+                    <button type="submit" className="btn btn-primary password-requirements__action" disabled={passwordSaving}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                         <rect x="5" y="11" width="14" height="10" rx="2" />
                         <path d="M8 11V8a4 4 0 0 1 8 0v3" />
@@ -657,21 +646,17 @@ export default function Profile() {
                       {passwordSaving ? 'Updating...' : 'Change Password'}
                     </button>
                   </div>
+                  {passwordError && <p className="state-message state-message--error">{passwordError}</p>}
+                  {passwordSuccess && <p className="profile-success">{passwordSuccess}</p>}
                 </form>
               </section>
             )}
 
             {!editingSection && section === 'appearance' && (
               <section className="profile-section">
-                <div className="profile-section-header profile-section-header--with-icon">
-                  <div className="profile-section-icon" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                      <path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12" />
-                    </svg>
-                  </div>
+                <div className="profile-section-header">
                   <div>
                     <h2>Appearance &amp; Theme</h2>
-                    <p className="page-description">Customize the look and feel of the application.</p>
                   </div>
                 </div>
                 <AppearancePicker value={theme} onChange={setTheme} />
@@ -683,9 +668,6 @@ export default function Profile() {
                 <div className="profile-section-header">
                   <div>
                     <h2>Help Center</h2>
-                    <p className="page-description" style={{ margin: '0.25rem 0 0', fontSize: '0.88rem' }}>
-                      Browse common topics or chat with the SmartCar assistant.
-                    </p>
                   </div>
                 </div>
                 <div className="help-center">

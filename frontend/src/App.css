@@ -1180,9 +1180,20 @@
   gap: 0.75rem;
 }
 
+.profile-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.profile-title-row h1 {
+  margin: 0;
+}
+
 .profile-qr-thumb {
   display: inline-flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   width: 36px;
   height: 36px;
@@ -1354,12 +1365,14 @@
 
 .password-requirements {
   display: flex;
-  align-items: flex-start;
-  gap: 0.7rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
   padding: 0.95rem 1.05rem;
   border-radius: 14px;
   background: var(--accent-soft);
   color: var(--accent);
+  flex-wrap: nowrap;
 }
 
 .password-requirements strong {
@@ -1371,12 +1384,12 @@
 .password-requirements ul {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem 1.1rem;
+  gap: 0.3rem 0.85rem;
   margin: 0;
   padding: 0;
   list-style: none;
   color: var(--text-secondary);
-  font-size: 0.84rem;
+  font-size: 0.8rem;
 }
 
 .password-requirements li {
@@ -1393,6 +1406,20 @@
   height: 6px;
   border-radius: 999px;
   background: var(--accent);
+}
+
+.password-requirements__action {
+  margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 0.6rem 1rem;
+  min-height: 42px;
+  font-size: 0.92rem;
+}
+
+.password-requirements__action svg {
+  width: 14px;
+  height: 14px;
 }
 
 .profile-grid {
@@ -2910,11 +2937,6 @@ html[data-theme='dark'] .about-explainer__car-body {
   fill: #60a5fa;
 }
 
-.about-explainer__car-glass {
-  fill: #dbeafe;
-  opacity: 0.85;
-}
-
 .about-explainer__car-wheel {
   fill: #475569;
 }
@@ -3102,35 +3124,15 @@ html[data-theme='dark'] .appearance-picker__option--dark .appearance-picker__ico
 .appearance-picker__note {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
+  gap: 0.5rem;
   padding: 1rem 1.1rem;
   border-radius: 16px;
   background: var(--accent-soft);
 }
 
-.appearance-picker__note-icon {
-  width: 22px;
-  height: 22px;
-  border-radius: var(--radius-full);
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.78rem;
-  font-weight: 800;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
 .appearance-picker__note strong {
   display: block;
   color: var(--text-h);
-}
-
-.appearance-picker__note p {
-  color: var(--text-secondary);
-  font-size: 0.84rem;
-  margin-top: 0.15rem;
 }
 
 /* --------------------------------------------------------------------------
