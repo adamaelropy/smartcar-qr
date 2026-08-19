@@ -389,8 +389,12 @@ app.post('/api/qr/:token/message', async (req, res) => {
 // Start Server
 // ==============================
 
-app.listen(PORT, () => {
-    console.log(
+if (require.main === module) {
+    app.listen(PORT, () => {
+      console.log(
         `SmartCar QR Backend running on http://localhost:${PORT}`
-    );
-});
+      );
+    });
+  }
+  
+  module.exports = app;
