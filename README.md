@@ -1,6 +1,10 @@
 # 🚗 SmartCar QR
 
+<<<<<<< Updated upstream
 **SmartCar QR** is a full-stack vehicle identification and communication platform. It pairs vehicles with unique QR codes to facilitate seamless, secure communication between vehicle owners, emergency contacts, and drivers in parking or emergency situations.
+=======
+**SmartCar QR** is a full-stack platform that gives every vehicle a unique QR code. People can scan it to reach the owner privately — for blocked parking, lights left on, or emergencies — without ever seeing the owner's personal phone number. The owner stays in control through a secure dashboard.
+>>>>>>> Stashed changes
 
 ---
 
