@@ -68,8 +68,8 @@ html[data-theme='dark'] {
 html[data-theme='light'] {
 /* Light Theme Palette */
   --bg: #f8fafc;
-  --bg-gradient-start: #f1f5f9;
-  --bg-gradient-end: #e2e8f0;
+  --bg-gradient-start: #f7fbff;
+  --bg-gradient-end: #eef4ff;
   
   --surface: #ffffff;
   --surface-hover: #f8fafc;

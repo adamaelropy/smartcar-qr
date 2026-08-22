@@ -2,18 +2,16 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
-const healthRoutes = require("./routes/health.routes");
+const prisma = require("./db");
+const jwt = require('jsonwebtoken');
+
 const serviceRoutes = require("./routes/serviceRoutes");
 const authRoutes = require("./routes/auth.routes");
 const registrationRoutes = require("./routes/registration.routes");
 const messagesRoutes = require("./routes/messages.routes");
 const usersRoutes = require("./routes/users.routes");
-<<<<<<< Updated upstream
 const { authenticate } = require("./middleware/auth.middleware");
-=======
-const vehiclesRoutes = require("./routes/vehicles.routes");
-const qrRoutes = require("./routes/qr.routes");
->>>>>>> Stashed changes
+const { createConversationMessage, getOrCreateConversation } = require("./controllers/messages.controller");
 
 const app = express();
 // Disable ETag to avoid 304 responses for dynamic API data
@@ -24,11 +22,47 @@ app.use(cors());
 app.use(express.json());
 
 // ==============================
-// Health & Database Test Routes
+// Test Backend
 // ==============================
 
-app.use("/", healthRoutes);
-app.use("/api", healthRoutes);
+app.get("/", (req, res) => {
+    res.json({
+        message: "SmartCar QR Backend is running!"
+    });
+});
+
+// ==============================
+// Test Supabase / Prisma Connection
+// ==============================
+
+app.get("/api/test-db", async (req, res) => {
+    try {
+        const result = await prisma.$queryRaw`SELECT 1 AS result`;
+
+        res.json({
+            success: true,
+            message: "Supabase PostgreSQL connection successful!",
+            result: Number(result[0].result)
+        });
+
+    } catch (error) {
+        console.error("Database connection error:", error.message);
+
+        res.status(500).json({
+            success: false,
+            message: "Supabase PostgreSQL connection failed."
+        });
+    }
+});
+
+const vehicleQrSelect = {
+    vehicle_id: true,
+    user_id: true,
+    plate_number: true,
+    car_name: true,
+    year_model: true,
+    qr_token: true
+};
 
 // ==============================
 // Authentication Routes
@@ -48,24 +82,49 @@ app.use("/api/registration", registrationRoutes);
 
 app.use("/api/messages", messagesRoutes);
 
-// ==============================
-// Services & Users Routes
-// ==============================
-
+// ============================== 
 app.use("/api/services", serviceRoutes);
+// Users route (protected) - returns usernames and vehicle QR tokens
 app.use("/api/users", usersRoutes);
 
 // ==============================
-// Vehicles Routes
+// Get Authenticated User Vehicle QR Information
 // ==============================
 
-app.use("/api/vehicles", vehiclesRoutes);
+app.get("/api/vehicles/me/qr", authenticate, async (req, res) => {
+    try {
+        const vehicle = await prisma.vehicle.findUnique({
+            where: {
+                user_id: req.user.userId
+            },
+            select: vehicleQrSelect
+        });
+
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                message: "Vehicle not found."
+            });
+        }
+
+        res.json({
+            success: true,
+            vehicle
+        });
+    } catch (error) {
+        console.error("My vehicle QR lookup error:", error.message);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to retrieve vehicle QR information."
+        });
+    }
+});
 
 // ==============================
-// QR Routes
+// Get Vehicle Using QR Token
 // ==============================
 
-<<<<<<< Updated upstream
 app.get("/api/qr/:token", async (req, res) => {
     const { token } = req.params;
 
@@ -168,7 +227,7 @@ app.post('/api/qr/:token/message', async (req, res) => {
     try {
         const vehicle = await prisma.vehicle.findUnique({
             where: { qr_token: token },
-            select: { vehicle_id: true },
+            select: { vehicle_id: true, user_id: true },
         });
 
         if (!vehicle) {
@@ -176,10 +235,9 @@ app.post('/api/qr/:token/message', async (req, res) => {
             return res.status(404).json({ success: false, message: 'QR code not found.' });
         }
 
-        const nextId = BigInt(Date.now()) * 1000n + BigInt(Math.floor(Math.random() * 1000));
-
         // Attempt to derive source from Authorization header (if visitor is logged in)
         let sourceValue = null;
+        let authenticatedSenderId = null;
         try {
             console.log('QR POST incoming. headers authorization:', !!req.headers.authorization, 'body from:', !!from);
             const authHeader = req.headers.authorization;
@@ -190,6 +248,7 @@ app.post('/api/qr/:token/message', async (req, res) => {
                     try {
                         const payload = jwt.verify(tokenString, secret);
                         if (payload && (payload.username || payload.userId)) {
+                                    authenticatedSenderId = payload.userId || null;
                                     // Prefer sender's vehicle id when available so threads separate by sender vehicle
                                     try {
                                         const senderVehicle = await prisma.vehicle.findUnique({
@@ -251,6 +310,43 @@ app.post('/api/qr/:token/message', async (req, res) => {
                 sourceValue = from ? String(from) : null;
             }
 
+            const normalizedMessage = String(message || (type === 'CALL' ? 'Call initiated' : 'No message')).trim();
+            const messageKind = type === 'EMERGENCY' ? 'EMERGENCY' : 'TEXT';
+
+            if (
+                authenticatedSenderId &&
+                vehicle.user_id &&
+                authenticatedSenderId !== vehicle.user_id
+            ) {
+                const conversation = await getOrCreateConversation(authenticatedSenderId, vehicle.user_id);
+                await createConversationMessage({
+                    conversationId: conversation.conversation_id,
+                    senderId: authenticatedSenderId,
+                    recipientId: vehicle.user_id,
+                    body: normalizedMessage,
+                    kind: messageKind,
+                });
+
+                console.log("QR message delivered to conversation", {
+                    conversation_id: String(conversation.conversation_id),
+                    sender_id: authenticatedSenderId,
+                    recipient_id: vehicle.user_id,
+                });
+
+                return res.json({
+                    success: true,
+                    message: "Message delivered.",
+                    threadId: String(conversation.conversation_id),
+                });
+            }
+
+            if (authenticatedSenderId && vehicle.user_id && authenticatedSenderId === vehicle.user_id) {
+                return res.status(400).json({
+                    success: false,
+                    message: "You cannot send a message to your own vehicle.",
+                });
+            }
+
             // If still no explicit source (no auth, no `from`), create a pseudo-source
             // based on a fingerprint of the request so different devices map to different threads.
             if (!sourceValue) {
@@ -268,13 +364,15 @@ app.post('/api/qr/:token/message', async (req, res) => {
                 }
             }
 
+        const nextId = BigInt(Date.now()) * 1000n + BigInt(Math.floor(Math.random() * 1000));
+
         await prisma.communication.create({
             data: {
                 communication_id: nextId,
                 vehicle_id: vehicle.vehicle_id,
                 type: type === 'CALL' ? 'CALL' : 'MESSAGE',
                 direction: 'RECEIVED',
-                message: String(message || (type === 'CALL' ? 'Call initiated' : 'No message')),
+                message: normalizedMessage,
                 source: sourceValue || null,
             },
         });
@@ -286,16 +384,17 @@ app.post('/api/qr/:token/message', async (req, res) => {
         return res.status(500).json({ success: false, message: 'Failed to record message.' });
     }
 });
-=======
-app.use("/api/qr", qrRoutes);
->>>>>>> Stashed changes
 
 // ==============================
 // Start Server
 // ==============================
 
-app.listen(PORT, () => {
-    console.log(
+if (require.main === module) {
+    app.listen(PORT, () => {
+      console.log(
         `SmartCar QR Backend running on http://localhost:${PORT}`
-    );
-});
+      );
+    });
+  }
+  
+  module.exports = app;

@@ -285,22 +285,30 @@ export default function Profile() {
       <section className="home-card profile-card">
         <div className="profile-header">
           <div className="profile-title-with-thumb">
-            <h1>My Profile</h1>
-            {qrToken && (
-              <button
-                type="button"
-                className="profile-qr-thumb"
-                onClick={openQrModal}
-                title="Click to view enlarged QR code"
-                aria-label="View enlarged QR code"
-              >
-                <QRCodeCanvas
-                  value={`${window.location.origin}/qr/${qrToken}`}
-                  size={32}
-                  marginSize={0}
-                />
-              </button>
-            )}
+            <div>
+              <div className="profile-title-row">
+                <h1>My Profile</h1>
+                {qrToken && (
+                  <button
+                    type="button"
+                    className="profile-qr-thumb"
+                    onClick={openQrModal}
+                    title="Click to view enlarged QR code"
+                    aria-label="View enlarged QR code"
+                  >
+                    <QRCodeCanvas
+                      value={`${window.location.origin}/qr/${qrToken}`}
+                      size={32}
+                      marginSize={0}
+                    />
+                  </button>
+                )}
+              </div>
+              <p className="page-description">Manage your account and keep your information secure.</p>
+            </div>
+          </div>
+          <div className="profile-header__visual" aria-hidden="true">
+            <img src="/images/hero-profile.png" alt="" />
           </div>
         </div>
 
@@ -324,23 +332,44 @@ export default function Profile() {
 
             <nav className="profile-nav" aria-label="Profile sections">
               {[
-                ['account', 'Account Details'],
-                ['personal', 'Personal & Vehicle'],
-                ['password', 'Password & Security'],
-                ['appearance', 'Appearance'],
-                ['help', 'Help Center'],
-                ['about', 'About Application'],
-              ].map(([id, label]) => (
+                ['account', 'Account Details', 'user'],
+                ['personal', 'Personal & Vehicle', 'car'],
+                ['password', 'Password & Security', 'lock'],
+                ['appearance', 'Appearance', 'palette'],
+                ['help', 'Help Center', 'help'],
+                ['about', 'About Application', 'info'],
+              ].map(([id, label, icon]) => (
                 <button
                   key={id}
                   type="button"
                   onClick={() => handleSectionChange(id)}
                   className={`profile-nav-btn ${section === id ? 'is-active' : ''}`}
                 >
+                  <span className="profile-nav-icon" aria-hidden="true">
+                    {icon === 'user' && (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="8" r="4" /><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" /></svg>
+                    )}
+                    {icon === 'car' && (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 13l2-5h14l2 5" /><path d="M5 16h14" /><circle cx="7.5" cy="16.5" r="1.5" /><circle cx="16.5" cy="16.5" r="1.5" /></svg>
+                    )}
+                    {icon === 'lock' && (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
+                    )}
+                    {icon === 'palette' && (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12" /><circle cx="7.5" cy="10" r="1" /><circle cx="10" cy="7" r="1" /><circle cx="14" cy="7" r="1" /><circle cx="16.5" cy="10" r="1" /></svg>
+                    )}
+                    {icon === 'help' && (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1.5 1-1.5 1.7V14" /><circle cx="12" cy="17" r=".8" /></svg>
+                    )}
+                    {icon === 'info' && (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 10v7" /><circle cx="12" cy="7" r=".8" /></svg>
+                    )}
+                  </span>
                   {label}
                 </button>
               ))}
               <button type="button" onClick={handleLogout} className="profile-logout-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
                 Log Out
               </button>
             </nav>
@@ -548,7 +577,9 @@ export default function Profile() {
             {!editingSection && section === 'password' && (
               <section className="profile-section">
                 <div className="profile-section-header">
-                  <h2>Password &amp; Security</h2>
+                  <div>
+                    <h2>Password &amp; Security</h2>
+                  </div>
                 </div>
                 <form className="profile-password-form" onSubmit={handleChangePassword}>
                   <label className="profile-edit-field" htmlFor="currentPassword">
@@ -560,6 +591,8 @@ export default function Profile() {
                       onChange={(e) => updatePasswordField('currentPassword', e.target.value)}
                       autoComplete="current-password"
                       required
+                      leadingIcon
+                      placeholder="Enter your current password"
                       label="Show current password"
                       hideLabel="Hide current password"
                     />
@@ -573,6 +606,8 @@ export default function Profile() {
                       onChange={(e) => updatePasswordField('newPassword', e.target.value)}
                       autoComplete="new-password"
                       required
+                      leadingIcon
+                      placeholder="Enter a new password"
                       label="Show new password"
                       hideLabel="Hide new password"
                     />
@@ -586,17 +621,33 @@ export default function Profile() {
                       onChange={(e) => updatePasswordField('confirmPassword', e.target.value)}
                       autoComplete="new-password"
                       required
+                      leadingIcon
+                      placeholder="Confirm your new password"
                       label="Show confirm password"
                       hideLabel="Hide confirm password"
                     />
                   </label>
-                  {passwordError && <p className="state-message state-message--error">{passwordError}</p>}
-                  {passwordSuccess && <p className="profile-success">{passwordSuccess}</p>}
-                  <div className="profile-form-actions">
-                    <button type="submit" className="btn btn-primary" disabled={passwordSaving}>
+                  <div className="password-requirements">
+                    <div>
+                      <strong>Password must contain:</strong>
+                      <ul>
+                        <li>6+ characters</li>
+                        <li>1 uppercase letter</li>
+                        <li>1 lowercase letter</li>
+                        <li>1 number</li>
+                        <li>1 special character</li>
+                      </ul>
+                    </div>
+                    <button type="submit" className="btn btn-primary password-requirements__action" disabled={passwordSaving}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                        <rect x="5" y="11" width="14" height="10" rx="2" />
+                        <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                      </svg>
                       {passwordSaving ? 'Updating...' : 'Change Password'}
                     </button>
                   </div>
+                  {passwordError && <p className="state-message state-message--error">{passwordError}</p>}
+                  {passwordSuccess && <p className="profile-success">{passwordSuccess}</p>}
                 </form>
               </section>
             )}
@@ -604,7 +655,9 @@ export default function Profile() {
             {!editingSection && section === 'appearance' && (
               <section className="profile-section">
                 <div className="profile-section-header">
-                  <h2>Appearance &amp; Theme</h2>
+                  <div>
+                    <h2>Appearance &amp; Theme</h2>
+                  </div>
                 </div>
                 <AppearancePicker value={theme} onChange={setTheme} />
               </section>
@@ -615,9 +668,6 @@ export default function Profile() {
                 <div className="profile-section-header">
                   <div>
                     <h2>Help Center</h2>
-                    <p className="page-description" style={{ margin: '0.25rem 0 0', fontSize: '0.88rem' }}>
-                      Browse common topics or chat with the SmartCar assistant.
-                    </p>
                   </div>
                 </div>
                 <div className="help-center">

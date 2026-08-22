@@ -88,7 +88,7 @@ async function signup(req, res) {
         });
 
     } catch (error) {
-        console.error("Signup error:", error.message);
+        console.error("Signup error:", error);
 
         const response = {
             success: false,
@@ -153,9 +153,7 @@ async function login(req, res) {
             });
         }
 
-        const registrationComplete = await isRegistrationComplete(
-            user.user_id
-        );
+        const registrationComplete = await isRegistrationComplete(user.user_id);
 
         const token = signToken(user);
 
@@ -171,7 +169,7 @@ async function login(req, res) {
         });
 
     } catch (error) {
-        console.error("Login error:", error.message);
+        console.error("Login error:", error);
 
         const response = {
             success: false,

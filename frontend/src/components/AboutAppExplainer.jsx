@@ -85,7 +85,6 @@ export default function AboutAppExplainer() {
               d="M510 250h176c12 0 22-10 22-22v-12c0-8-6-14-14-14h-18l-20-28c-4-6-10-10-17-10h-72c-7 0-13 4-17 10l-20 28h-18c-8 0-14 6-14 14v12c0 12 10 22 22 22z"
               className="about-explainer__car-body"
             />
-            <path d="M548 166h68l16 22H532z" className="about-explainer__car-glass" />
             <circle cx="548" cy="250" r="18" className="about-explainer__car-wheel" />
             <circle cx="548" cy="250" r="8" className="about-explainer__car-wheel-inner" />
             <circle cx="662" cy="250" r="18" className="about-explainer__car-wheel" />

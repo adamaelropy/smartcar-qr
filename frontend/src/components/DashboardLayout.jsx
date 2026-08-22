@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import BrandMark from './BrandMark';
 import { useAuth } from '../context/AuthContext';
 import { fetchMessages } from '../services/api';
 
@@ -33,6 +34,7 @@ function DashboardLayout() {
 
         const threads = Array.isArray(data?.messages) ? data.messages : [];
         const totalUnread = threads.reduce((sum, t) => sum + (t.unread || 0), 0);
+        const newestUnreadThread = threads.find((thread) => (thread.unread || 0) > 0);
 
         // first load: set baseline without notifying
         if (lastUnread === 0) {
@@ -43,9 +45,11 @@ function DashboardLayout() {
 
         if (totalUnread > lastUnread && location.pathname !== '/messages') {
           setActiveNotification({
-            title: 'New Vehicle Message',
-            subtitle: `You have ${totalUnread - lastUnread} new message(s)`,
-            thread: '/messages',
+            title: 'New Message Received',
+            subtitle: newestUnreadThread
+              ? `${newestUnreadThread.senderName}: ${newestUnreadThread.latestIncomingText || newestUnreadThread.preview}`
+              : `You have ${totalUnread - lastUnread} new message(s)`,
+            thread: newestUnreadThread ? `/messages?thread=${encodeURIComponent(newestUnreadThread.id)}` : '/messages',
           });
         }
 
@@ -75,13 +79,12 @@ function DashboardLayout() {
     }
   };
 
-  const isMessagesRoute = location.pathname === '/messages';
-
   return (
     <div className="dashboard-shell">
       <header className="dashboard-nav-wrap">
         <nav className="dashboard-nav page-shell" aria-label="Main navigation">
           <NavLink to="/home" className="dashboard-brand">
+            <BrandMark size={32} />
             SmartCar QR
           </NavLink>
 
@@ -133,7 +136,7 @@ function DashboardLayout() {
 
       <Outlet />
 
-      {!isMessagesRoute && activeNotification && (
+      {activeNotification && (
         <div className="message-toast" role="alert">
           <div className="message-toast__content">
             <span className="message-toast__badge">Alert</span>
