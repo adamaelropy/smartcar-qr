@@ -93,8 +93,9 @@
 
 .dashboard-link.is-active {
   color: var(--accent);
-  background: transparent;
-  border-color: var(--accent);
+  background: var(--nav-active);
+  border-bottom-color: var(--accent);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
 
 .dashboard-account {
@@ -165,10 +166,11 @@
 
 .btn-primary,
 .auth-button {
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
   color: var(--on-accent);
   border-color: rgba(255, 255, 255, 0.1);
   box-shadow: 0 4px 14px var(--accent-soft);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .btn-primary:hover,
@@ -188,6 +190,7 @@
   background: var(--surface-soft);
   color: var(--text-h);
   border-color: var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .btn-secondary:hover {
@@ -249,7 +252,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
+  box-shadow: 0 8px 32px rgba(2, 6, 23, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   position: relative;
   overflow: hidden;
 }
