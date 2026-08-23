@@ -34,7 +34,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'YOUR_BACKEND_URL',
+        target: 'https://smartcar-qr-backend.vercel.app/',
         changeOrigin: true,
         secure: false
       }
