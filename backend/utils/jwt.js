@@ -13,6 +13,8 @@ function signToken(user) {
             username: user.username
         },
         secret
+        
+        
     );
 }
 
