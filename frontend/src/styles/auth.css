@@ -154,10 +154,6 @@
   display: none;
 }
 
-.input-with-icon input[type='password']::-webkit-textfield-decoration-container {
-  display: none;
-}
-
 .input-with-icon .icon-button {
   position: absolute;
   right: 10px;
@@ -173,6 +169,7 @@
   color: var(--muted);
   border-radius: var(--radius-sm);
   transition: color 0.15s ease;
+  z-index: 2;
 }
 
 .input-with-icon .icon-button svg {
@@ -180,6 +177,41 @@
 }
 
 .input-with-icon .icon-button:hover {
+  color: var(--text-h);
+}
+.mobile-password-field {
+  position: relative;
+  width: 100%;
+}
+
+.mobile-password-field input {
+  width: 100%;
+  padding-right: 2.75rem;
+}
+
+.mobile-password-eye {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--muted);
+  border-radius: var(--radius-sm);
+  transition: color 0.15s ease;
+  z-index: 2;
+}
+
+.mobile-password-eye svg {
+  display: block;
+}
+
+.mobile-password-eye:hover {
   color: var(--text-h);
 }
 
