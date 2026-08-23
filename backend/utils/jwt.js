@@ -12,10 +12,7 @@ function signToken(user) {
             userId: user.user_id,
             username: user.username
         },
-        secret,
-        {
-            expiresIn: process.env.JWT_EXPIRES_IN || "24h"
-        }
+        secret
     );
 }
 
