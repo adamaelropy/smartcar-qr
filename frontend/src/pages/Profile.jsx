@@ -71,6 +71,9 @@ export default function Profile() {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // UI section state
   const [section, setSection] = useState('account');
@@ -584,47 +587,134 @@ export default function Profile() {
                 <form className="profile-password-form" onSubmit={handleChangePassword}>
                   <label className="profile-edit-field" htmlFor="currentPassword">
   <span className="profile-label">Current Password</span>
-  <input
-    id="currentPassword"
-    name="currentPassword"
-    className="profile-input"
-    type="password"
-    value={passwordForm.currentPassword}
-    onChange={(e) => updatePasswordField('currentPassword', e.target.value)}
-    autoComplete="current-password"
-    required
-    placeholder="Enter your current password"
-  />
+
+  <div className="mobile-password-field">
+    <input
+      id="currentPassword"
+      name="currentPassword"
+      className="profile-input"
+      type={showCurrentPassword ? 'text' : 'password'}
+      value={passwordForm.currentPassword}
+      onChange={(e) =>
+        updatePasswordField('currentPassword', e.target.value)
+      }
+      autoComplete="current-password"
+      required
+      placeholder="Enter your current password"
+    />
+
+    <button
+      type="button"
+      className="mobile-password-eye"
+      onClick={() =>
+        setShowCurrentPassword((current) => !current)
+      }
+      aria-label={
+        showCurrentPassword ? 'Hide current password' : 'Show current password'
+      }
+    >
+      {showCurrentPassword ? (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 3l18 18" />
+          <path d="M10.58 10.58A3 3 0 0113.42 13.42" />
+          <path d="M14.12 14.12A9 9 0 0112 17c-4.97 0-9-5-9-5a19.6 19.6 0 014.28-4.77" />
+        </svg>
+      ) : (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      )}
+    </button>
+  </div>
 </label>
 
 <label className="profile-edit-field" htmlFor="newPassword">
   <span className="profile-label">New Password</span>
-  <input
-    id="newPassword"
-    name="newPassword"
-    className="profile-input"
-    type="password"
-    value={passwordForm.newPassword}
-    onChange={(e) => updatePasswordField('newPassword', e.target.value)}
-    autoComplete="new-password"
-    required
-    placeholder="Enter a new password"
-  />
+
+  <div className="mobile-password-field">
+    <input
+      id="newPassword"
+      name="newPassword"
+      className="profile-input"
+      type={showNewPassword ? 'text' : 'password'}
+      value={passwordForm.newPassword}
+      onChange={(e) =>
+        updatePasswordField('newPassword', e.target.value)
+      }
+      autoComplete="new-password"
+      required
+      placeholder="Enter a new password"
+    />
+
+    <button
+      type="button"
+      className="mobile-password-eye"
+      onClick={() =>
+        setShowNewPassword((current) => !current)
+      }
+      aria-label={
+        showNewPassword ? 'Hide new password' : 'Show new password'
+      }
+    >
+      {showNewPassword ? (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 3l18 18" />
+          <path d="M10.58 10.58A3 3 0 0113.42 13.42" />
+          <path d="M14.12 14.12A9 9 0 0112 17c-4.97 0-9-5-9-5a19.6 19.6 0 014.28-4.77" />
+        </svg>
+      ) : (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      )}
+    </button>
+  </div>
 </label>
 
 <label className="profile-edit-field" htmlFor="confirmPassword">
   <span className="profile-label">Confirm New Password</span>
-  <input
-    id="confirmPassword"
-    name="confirmPassword"
-    className="profile-input"
-    type="password"
-    value={passwordForm.confirmPassword}
-    onChange={(e) => updatePasswordField('confirmPassword', e.target.value)}
-    autoComplete="new-password"
-    required
-    placeholder="Confirm your new password"
-  />
+
+  <div className="mobile-password-field">
+    <input
+      id="confirmPassword"
+      name="confirmPassword"
+      className="profile-input"
+      type={showConfirmPassword ? 'text' : 'password'}
+      value={passwordForm.confirmPassword}
+      onChange={(e) =>
+        updatePasswordField('confirmPassword', e.target.value)
+      }
+      autoComplete="new-password"
+      required
+      placeholder="Confirm your new password"
+    />
+
+    <button
+      type="button"
+      className="mobile-password-eye"
+      onClick={() =>
+        setShowConfirmPassword((current) => !current)
+      }
+      aria-label={
+        showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'
+      }
+    >
+      {showConfirmPassword ? (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 3l18 18" />
+          <path d="M10.58 10.58A3 3 0 0113.42 13.42" />
+          <path d="M14.12 14.12A9 9 0 0112 17c-4.97 0-9-5-9-5a19.6 19.6 0 014.28-4.77" />
+        </svg>
+      ) : (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      )}
+    </button>
+  </div>
 </label>
                   <div className="password-requirements">
                     <div>
