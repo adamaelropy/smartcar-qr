@@ -73,8 +73,10 @@ function SignUp() {
 
           <div className="auth-field">
             <label htmlFor="signup-password">Password *</label>
-            <PasswordInput
+            <input
               id="signup-password"
+              name="password"
+              type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="new-password"
