@@ -583,50 +583,49 @@ export default function Profile() {
                 </div>
                 <form className="profile-password-form" onSubmit={handleChangePassword}>
                   <label className="profile-edit-field" htmlFor="currentPassword">
-                    <span className="profile-label">Current Password</span>
-                    <PasswordInput
-                      id="currentPassword"
-                      inputClassName="profile-input"
-                      value={passwordForm.currentPassword}
-                      onChange={(e) => updatePasswordField('currentPassword', e.target.value)}
-                      autoComplete="current-password"
-                      required
-                      leadingIcon
-                      placeholder="Enter your current password"
-                      label="Show current password"
-                      hideLabel="Hide current password"
-                    />
-                  </label>
-                  <label className="profile-edit-field" htmlFor="newPassword">
-                    <span className="profile-label">New Password</span>
-                    <PasswordInput
-                      id="newPassword"
-                      inputClassName="profile-input"
-                      value={passwordForm.newPassword}
-                      onChange={(e) => updatePasswordField('newPassword', e.target.value)}
-                      autoComplete="new-password"
-                      required
-                      leadingIcon
-                      placeholder="Enter a new password"
-                      label="Show new password"
-                      hideLabel="Hide new password"
-                    />
-                  </label>
-                  <label className="profile-edit-field" htmlFor="confirmPassword">
-                    <span className="profile-label">Confirm New Password</span>
-                    <PasswordInput
-                      id="confirmPassword"
-                      inputClassName="profile-input"
-                      value={passwordForm.confirmPassword}
-                      onChange={(e) => updatePasswordField('confirmPassword', e.target.value)}
-                      autoComplete="new-password"
-                      required
-                      leadingIcon
-                      placeholder="Confirm your new password"
-                      label="Show confirm password"
-                      hideLabel="Hide confirm password"
-                    />
-                  </label>
+  <span className="profile-label">Current Password</span>
+  <input
+    id="currentPassword"
+    name="currentPassword"
+    className="profile-input"
+    type="password"
+    value={passwordForm.currentPassword}
+    onChange={(e) => updatePasswordField('currentPassword', e.target.value)}
+    autoComplete="current-password"
+    required
+    placeholder="Enter your current password"
+  />
+</label>
+
+<label className="profile-edit-field" htmlFor="newPassword">
+  <span className="profile-label">New Password</span>
+  <input
+    id="newPassword"
+    name="newPassword"
+    className="profile-input"
+    type="password"
+    value={passwordForm.newPassword}
+    onChange={(e) => updatePasswordField('newPassword', e.target.value)}
+    autoComplete="new-password"
+    required
+    placeholder="Enter a new password"
+  />
+</label>
+
+<label className="profile-edit-field" htmlFor="confirmPassword">
+  <span className="profile-label">Confirm New Password</span>
+  <input
+    id="confirmPassword"
+    name="confirmPassword"
+    className="profile-input"
+    type="password"
+    value={passwordForm.confirmPassword}
+    onChange={(e) => updatePasswordField('confirmPassword', e.target.value)}
+    autoComplete="new-password"
+    required
+    placeholder="Confirm your new password"
+  />
+</label>
                   <div className="password-requirements">
                     <div>
                       <strong>Password must contain:</strong>
