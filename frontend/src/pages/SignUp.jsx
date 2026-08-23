@@ -74,27 +74,30 @@ function SignUp() {
           <div className="auth-field">
             <label htmlFor="signup-password">Password *</label>
             <input
-              id="signup-password"
-              name="password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="new-password"
-              required
+                id="signup-confirm-password"
+                name="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                autoComplete="new-password"
+                required
             />
           </div>
 
           <div className="auth-field">
             <label htmlFor="confirm-password">Confirm Password *</label>
-            <PasswordInput
-              id="confirm-password"
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              autoComplete="new-password"
-              required
-              label="Show confirm password"
-              hideLabel="Hide confirm password"
-            />
+            <div className="auth-field">
+            <label htmlFor="confirm-password">Confirm Password *</label>
+              <input
+                id="confirm-password"
+                name="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                autoComplete="new-password"
+                required
+              />
+            </div>
           </div>
 
           <p className="auth-hint">
