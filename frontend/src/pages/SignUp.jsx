@@ -72,33 +72,30 @@ function SignUp() {
           </div>
 
           <div className="auth-field">
-            <label htmlFor="signup-password">Password *</label>
-            <input
-                id="signup-confirm-password"
-                name="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                autoComplete="new-password"
-                required
-            />
-          </div>
+  <label htmlFor="signup-password">Password *</label>
+  <input
+    id="signup-password"
+    name="password"
+    type="password"
+    value={password}
+    onChange={(event) => setPassword(event.target.value)}
+    autoComplete="new-password"
+    required
+  />
+</div>
 
-          <div className="auth-field">
-            <label htmlFor="confirm-password">Confirm Password *</label>
-            <div className="auth-field">
-            <label htmlFor="confirm-password">Confirm Password *</label>
-              <input
-                id="confirm-password"
-                name="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                autoComplete="new-password"
-                required
-              />
-            </div>
-          </div>
+<div className="auth-field">
+  <label htmlFor="confirm-password">Confirm Password *</label>
+  <input
+    id="confirm-password"
+    name="confirmPassword"
+    type="password"
+    value={confirmPassword}
+    onChange={(event) => setConfirmPassword(event.target.value)}
+    autoComplete="new-password"
+    required
+  />
+</div>
 
           <p className="auth-hint">
             Password must be at least 6 characters and include uppercase,
