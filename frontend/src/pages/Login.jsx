@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { login as loginRequest } from '../services/api';
-import PasswordInput from '../components/PasswordInput';
 import BrandMark from '../components/BrandMark';
 import '../styles/auth.css';
 

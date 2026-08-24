@@ -8,7 +8,6 @@ import {
   fetchMyVehicleQr,
   updateMyProfile,
 } from '../services/api';
-import PasswordInput from '../components/PasswordInput';
 import AboutAppExplainer from '../components/AboutAppExplainer';
 import AppearancePicker from '../components/AppearancePicker';
 import { applyTheme, getStoredTheme, resolveTheme } from '../utils/theme';
