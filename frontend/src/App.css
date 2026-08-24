@@ -93,8 +93,12 @@
 
 .dashboard-link.is-active {
   color: var(--accent);
-  background: transparent;
-  border-color: var(--accent);
+  background: var(--nav-active);
+  border-color: var(--border-strong);
+}
+
+.dashboard-link.is-active:hover {
+  color: var(--accent-hover);
 }
 
 .dashboard-account {
@@ -165,29 +169,30 @@
 
 .btn-primary,
 .auth-button {
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   color: var(--on-accent);
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: transparent;
   box-shadow: 0 4px 14px var(--accent-soft);
 }
 
 .btn-primary:hover,
 .auth-button:hover {
-  background: var(--accent-hover);
+  background: linear-gradient(135deg, var(--accent-hover), var(--accent-strong));
   box-shadow: 0 6px 20px var(--accent-glow);
   transform: translateY(-1px);
 }
 
 .btn-primary:active,
 .auth-button:active {
-  background: var(--accent-strong);
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
   transform: translateY(0);
+  box-shadow: 0 2px 8px var(--accent-soft);
 }
 
 .btn-secondary {
   background: var(--surface-soft);
   color: var(--text-h);
-  border-color: var(--border);
+  border-color: var(--border-card);
 }
 
 .btn-secondary:hover {
@@ -195,6 +200,10 @@
   border-color: var(--border-strong);
   color: var(--text-h);
   transform: translateY(-1px);
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
 }
 
 .btn-danger {
@@ -504,9 +513,9 @@
 .landing-feature-card {
   text-align: left;
   padding: 1.25rem;
-  border-radius: 18px;
+  border-radius: 16px;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-card);
   box-shadow: var(--shadow-soft);
 }
 
@@ -672,9 +681,9 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
   padding: 1.1rem;
-  border-radius: 18px;
+  border-radius: 16px;
   background: var(--surface-soft);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-card);
 }
 
 .home-stats div {
@@ -718,7 +727,7 @@
   padding: 0.65rem 1rem;
   padding-left: 2.6rem;
   border-radius: var(--radius-md);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-card);
   background: var(--surface-input);
   color: var(--text-h);
   outline: none;
@@ -974,7 +983,7 @@
 .service-card {
   padding: 1.15rem 1.05rem 1.2rem;
   border-radius: 16px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-card);
   background: var(--surface-strong);
   box-shadow: var(--shadow-sm);
   text-align: left;
