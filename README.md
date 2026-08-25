@@ -1,45 +1,52 @@
 # 🚗 SmartCar QR
 
-**Scan it. Reach them. Keep moving.**
+**Reach any vehicle owner instantly — no phone number required.**
 
-SmartCar QR is a QR-based vehicle communication system that makes it easy to contact a vehicle owner without needing their phone number. A person simply scans the QR code attached to a vehicle and can send a message, report an issue, or notify the owner about an emergency.
+SmartCar QR gives every registered vehicle a unique QR code. Anyone can scan it to message the owner, report a blocked car, or send an emergency alert with their location — all without ever seeing a private phone number. Registered users get a persistent inbox; anonymous scanners are still tracked so their conversation can carry over if they sign up later.
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [How It Works](#how-it-works)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Project Structure](#project-structure)
+- [API Overview](#api-overview)
+- [Deployment](#deployment)
 
 ---
 
 ## ✨ Features
 
-- 📱 Scan vehicle QR codes
-- 💬 Send automated messages
-- ✍️ Send custom messages
-- 🚨 Send emergency notifications with GPS location
-- 📩 Receive messages through an inbox
-- 🕵️ Anonymous messaging with an `Unknown` identity
-- 👤 User registration and authentication
-- 🔄 Automatically link anonymous messages after account creation
-- 🚘 Manage vehicle information
-- 📲 Progressive Web App (PWA) support
-- 🗺️ Google Maps location links for emergencies
-- 🔐 JWT-based authentication
-- 🗄️ PostgreSQL database with Prisma and Supabase
+- 📝 **Simple onboarding** — sign up, complete your profile, register your vehicle, and get a QR code in one flow
+- 🔒 **Private QR contact** — visitors can message you without ever seeing your phone number
+- 🚨 **Emergency alerts** — one-tap emergency notifications with GPS location
+- 🚧 **Blocked-car reports** — quick, predefined messages for common situations
+- 📩 **Unified inbox** — a single place for all conversations, with unread tracking and quick replies
+- 🕵️ **Anonymous-friendly** — people can reach out without an account, and claim that conversation later by signing up
+- 🔧 **Vehicle services directory** — browse and filter nearby automotive services
+- 📲 **Installable PWA** — works like a native app on mobile and desktop
+- 🌗 **Light & dark themes**
 
 ---
 
 ## 🔄 How It Works
 
-### 1. Scan
-Scan the QR code attached to a vehicle.
+### 🚘 For vehicle owners
+1. **Sign up** and complete your profile — personal details, an emergency contact, and your vehicle info.
+2. Get a **unique QR code** for your vehicle, ready to print or display.
+3. Manage everything from your dashboard — profile, password, QR code, and messages.
 
-### 2. Choose an Action
-The visitor can:
-- Send an automated message
-- Write a custom message
-- Send an emergency notification
+### 📱 For anyone scanning a QR code
+1. **Scan** the code on a vehicle to open its public contact page — no login needed.
+2. Choose an action: send an **automated or custom message**, report a **blocked vehicle**, or trigger an **emergency alert** (shares your location).
+3. The owner receives it instantly in their inbox. If you're logged in, it starts a proper conversation. If not, you're shown as **Unknown** — but your messages stay grouped together.
 
-### 3. The Owner Receives It
-The vehicle owner receives the message in their inbox. If the sender isn't logged in, they appear as **Unknown**.
-
-### 4. Create an Account
-If an anonymous sender later creates an account, their previous messages are automatically linked to their new account. The conversation updates from **Unknown → Username**, while keeping the original message history intact.
+### 🔄 Anonymous → registered handoff
+If you message someone anonymously and later create an account, your previous messages are automatically linked to your new profile. The owner sees your username instead of "Unknown," and the full conversation history is preserved.
 
 ---
 
@@ -47,10 +54,77 @@ If an anonymous sender later creates an account, their previous messages are aut
 
 | Layer | Technologies |
 |---|---|
-| **Frontend** | React, Vite, React Router, Vite PWA, CSS |
-| **Backend** | Node.js, Express, JWT, Prisma ORM |
-| **Database** | PostgreSQL, Supabase |
-| **Deployment** | Vercel |
+| Frontend | React, Vite, React Router, PWA support |
+| Backend | Node.js, Express, JWT authentication |
+| Database | PostgreSQL (Supabase), Prisma ORM |
+| Deployment | Vercel |
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+
+- npm
+- A PostgreSQL database (Supabase recommended)
+
+### 1. Clone and install
+
+```bash
+git clone <repository-url>
+cd "SmartCar QR"
+
+cd backend && npm install
+cd ../frontend && npm install
+```
+
+### 2. Configure environment variables
+
+Copy `.env.example` to `.env` in both `backend/` and `frontend/`, and fill in your values (see [Environment Variables](#environment-variables)).
+
+### 3. Set up the database
+
+```bash
+cd backend
+npx prisma generate
+npx prisma migrate deploy
+node scripts/seed-services.js   # optional: adds sample services
+```
+
+### 4. Run the app
+
+```bash
+# Terminal 1 — backend
+cd backend
+npm run dev        # runs on http://localhost:3000
+
+# Terminal 2 — frontend
+cd frontend
+npm run dev        # runs on http://localhost:5173
+```
+
+Open `http://localhost:5173`, sign up, complete registration, and you're in.
+
+---
+
+## 🔐 Environment Variables
+
+**Backend (`backend/.env`)**
+
+```env
+PORT=3000
+DATABASE_URL="your-supabase-pooled-connection-url"
+DIRECT_URL="your-supabase-direct-connection-url"
+JWT_SECRET="a-strong-random-secret"
+```
+
+**Frontend (`frontend/.env`)**
+
+```env
+VITE_API_URL=http://localhost:3000/api
+```
+
+> Never commit `.env` files or secrets to version control.
 
 ---
 
@@ -58,25 +132,21 @@ If an anonymous sender later creates an account, their previous messages are aut
 
 ```text
 SmartCar QR/
-│
 ├── backend/
-│   ├── controllers/
-│   ├── middleware/
-│   ├── routes/
-│   ├── utils/
-│   ├── validators/
-│   ├── prisma/
+│   ├── controllers/     # Route logic (auth, registration, messages, QR, etc.)
+│   ├── middleware/       # JWT authentication
+│   ├── prisma/           # Database schema and migrations
+│   ├── routes/            # API route definitions
+│   ├── utils/              # Helpers (JWT, passwords, QR tokens, anonymous IDs)
+│   ├── validators/       # Request validation
 │   └── server.js
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── components/
-│   │   ├── context/
-│   │   ├── hooks/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   └── utils/
-│   ├── public/
+│   │   ├── components/   # Shared UI components
+│   │   ├── context/        # Auth and messaging state
+│   │   ├── pages/           # Landing, auth, dashboard, and public QR pages
+│   │   └── services/       # API client
 │   └── vite.config.js
 │
 └── README.md
@@ -84,119 +154,32 @@ SmartCar QR/
 
 ---
 
-## 🚀 Getting Started
+## 🔌 API Overview
 
-### Prerequisites
+| Endpoint | Method | Auth | Description |
+|---|---|---|---|
+| `/api/auth/signup` | POST | Public | Create an account |
+| `/api/auth/login` | POST | Public | Log in |
+| `/api/auth/me` | GET / PUT | Bearer | View or update your profile |
+| `/api/auth/password` | PUT | Bearer | Change password |
+| `/api/registration` | POST | Bearer | Complete registration and generate a QR code |
+| `/api/services` | GET | Public | List vehicle services |
+| `/api/qr/:token` | GET | Public | Look up a vehicle by its QR code |
+| `/api/qr/:token/message` | POST | Optional | Send a message or emergency alert via a scanned QR code |
+| `/api/messages` | GET | Bearer | List your conversation threads |
+| `/api/messages/send` | POST | Bearer | Send a message in a thread |
+| `/api/messages/read` | POST | Bearer | Mark a thread as read |
 
-Make sure you have:
-- Node.js
-- npm
-- A PostgreSQL / Supabase database
-
-### 1. Clone the Repository
-
-```bash
-git clone <repository-url>
-cd "SmartCar QR"
-```
-
-### 2. Install Dependencies
-
-**Backend:**
-```bash
-cd backend
-npm install
-```
-
-**Frontend:**
-```bash
-cd ../frontend
-npm install
-```
-
-### 3. Configure Environment Variables
-
-Create your environment files locally.
-
-**Frontend (`.env`):**
-```env
-VITE_API_URL=http://localhost:3000/api
-```
-
-**Backend:** requires the database and authentication environment variables used by the application (e.g. database connection string, JWT secret).
-
-> ⚠️ Never commit `.env` files or secret credentials to Git.
-
-### 4. Start the Backend
-
-```bash
-cd backend
-npm start
-```
-
-Runs on: `http://localhost:3000`
-
-### 5. Start the Frontend
-
-In another terminal:
-
-```bash
-cd frontend
-npm run dev
-```
-
-Runs on: `http://localhost:5173`
-
----
-
-## 🧪 Verification
-
-**Frontend:**
-```bash
-npm run lint
-npm run build
-```
-
-**Backend:**
-```bash
-npx prisma validate
-npx prisma generate
-```
+Full request/response details are documented in the codebase.
 
 ---
 
 ## 🌐 Deployment
 
-| Part | Platform |
-|---|---|
-| Frontend | Vercel |
-| Backend | Vercel |
-| Database | Supabase |
+- **Backend & Frontend** — deployed as separate projects on Vercel
+- **Database** — Supabase PostgreSQL, migrated via `npx prisma migrate deploy`
 
-For production, configure the frontend's `VITE_API_URL` to point to the deployed backend API.
-
----
-
-## 🔐 Security
-
-SmartCar QR uses:
-- JWT authentication for registered users
-- Protected messaging endpoints
-- Server-side anonymous identity hashing
-- Prisma ORM with PostgreSQL for data integrity
-- Environment variables for sensitive configuration
-
-> Anonymous identities are used only to associate messages with the same anonymous device. They do not grant access to authenticated user endpoints.
-
----
-
-## 💡 Project Goal
-
-SmartCar QR is designed to make vehicle-to-owner communication simple and immediate.
-
-No phone number. No searching. No leaving a note on the windshield.
-
-**Just: Scan → Message → Notify**
+Set the same environment variables from above in your Vercel project settings, using production database credentials.
 
 ---
 
