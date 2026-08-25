@@ -122,8 +122,18 @@ function Messages() {
     };
   }, [selectedThreadId, token]);
 
+  const isAnonymousThread = Boolean(
+    selectedThread?.isAnonymous ||
+    selectedThread?.senderName === 'Unknown' ||
+    String(selectedThread?.id || '').startsWith('anon-vehicle-')
+  );
+
   const handleSendAutoReply = async () => {
     if (!selectedThread || !token || sendingReply) return;
+    if (isAnonymousThread) {
+      setSendError('Cannot reply to anonymous sender. No reply channel available.');
+      return;
+    }
 
     try {
       setSendingReply(true);
@@ -223,11 +233,15 @@ function Messages() {
 
             <div className="message-reply-panel" ref={replyPanelRef}>
               {sendError && <p className="state-message state-message--error">{sendError}</p>}
-              <div className="message-reply-panel__actions">
-                <button type="button" className="btn btn-primary" onClick={handleSendAutoReply} disabled={sendingReply}>
-                  {sendingReply ? 'Sending...' : "Ok! I'm coming!"}
-                </button>
-              </div>
+              {isAnonymousThread ? (
+                <p className="state-message">Anonymous messages cannot be replied to — no reply channel available.</p>
+              ) : (
+                <div className="message-reply-panel__actions">
+                  <button type="button" className="btn btn-primary" onClick={handleSendAutoReply} disabled={sendingReply}>
+                    {sendingReply ? 'Sending...' : "Ok! I'm coming!"}
+                  </button>
+                </div>
+              )}
             </div>
           </section>
         ) : (

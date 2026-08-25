@@ -13,33 +13,13 @@ import Users from "./pages/Users";
 import Landing from "./pages/landing";
 import { fetchVehicleByQrToken, postQrMessage } from "./services/api";
 import { useAuth } from "./context/AuthContext";
+import { getAnonymousDeviceId } from "./utils/anonymousId";
 
 import "./App.css";
 
 // ==============================
 // Scanned QR Page (Public Visitor View)
 // ==============================
-
-function getSenderIdentity(currentUser) {
-  try {
-    if (currentUser?.username) {
-      return `user:${currentUser.username}`;
-    }
-    const storedUser = localStorage.getItem('smartcar_user');
-    if (storedUser) {
-      const parsed = JSON.parse(storedUser);
-      if (parsed?.username) return `user:${parsed.username}`;
-    }
-    let visitor = localStorage.getItem('smartcar_visitor_id');
-    if (!visitor) {
-      visitor = `visitor:${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-      localStorage.setItem('smartcar_visitor_id', visitor);
-    }
-    return visitor;
-  } catch {
-    return 'visitor:anonymous';
-  }
-}
 
 function ScannedQR() {
   const { token } = useParams();
@@ -54,7 +34,6 @@ function ScannedQR() {
   const [emergencySending, setEmergencySending] = useState(false);
   const [emergencyFeedback, setEmergencyFeedback] = useState('');
   const [messageMode, setMessageMode] = useState('auto');
-  const [fromValue] = useState(() => getSenderIdentity(user));
 
   useEffect(() => {
     let isMounted = true;
@@ -123,7 +102,6 @@ function ScannedQR() {
   }
 
   const handleSendMessage = async () => {
-    const senderName = (user && user.username) ? user.username : fromValue;
     const messageToSend =
       messageMode === 'auto'
         ? `Hello, you blocked my car in the parking please come and move it`
@@ -134,11 +112,16 @@ function ScannedQR() {
     setSending(true);
     setMessageFeedback('');
     try {
-      const response = await postQrMessage(
-        token,
-        { type: 'MESSAGE', message: messageToSend, senderName, from: fromValue },
-        authToken,
-      );
+      const isAnonymous = !authToken && !user?.username;
+      const payload = { type: 'MESSAGE', message: messageToSend };
+      if (isAnonymous) {
+        try {
+          payload.anonymousId = getAnonymousDeviceId();
+        } catch {
+          // ignore
+        }
+      }
+      const response = await postQrMessage(token, payload, authToken);
 
       if (!response.ok) {
         throw new Error(response.data?.message || 'Failed to send message.');
@@ -163,40 +146,52 @@ function ScannedQR() {
     setEmergencyFeedback('');
 
     const getPosition = () =>
-      new Promise((resolve, reject) => {
-        if (!navigator.geolocation) return reject(new Error('Geolocation not supported'));
+      new Promise((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
         navigator.geolocation.getCurrentPosition(
           (pos) => resolve(pos.coords),
-          (err) => reject(err),
+          () => resolve(null),
           { enableHighAccuracy: true, timeout: 10000 }
         );
       });
 
     try {
       const coords = await getPosition();
-      const lat = coords.latitude;
-      const lng = coords.longitude;
-      const mapLink = `https://maps.google.com/?q=${lat},${lng}`;
       const timestamp = new Date().toISOString();
-      const visitorInfo = (navigator && navigator.userAgent) || 'visitor';
-      const senderName = (user && user.username) ? user.username : fromValue;
       const base = 'This vehicle got into an accident please head to this location asap';
-      const message = `${base} ${mapLink} (reported at ${timestamp} by ${visitorInfo})`;
+      let message;
+      let location = null;
+      if (coords && typeof coords.latitude === 'number' && typeof coords.longitude === 'number') {
+        const lat = coords.latitude;
+        const lng = coords.longitude;
+        const mapLink = `https://maps.google.com/?q=${lat},${lng}`;
+        message = `${base} ${mapLink} (reported at ${timestamp})`;
+        location = { lat, lng };
+      } else {
+        message = `${base} (reported at ${timestamp} - location unavailable)`;
+      }
+      const isAnonymousEmer = !authToken && !user?.username;
+      const payload = location
+        ? { type: 'EMERGENCY', message, location, timestamp }
+        : { type: 'EMERGENCY', message, timestamp };
+      if (isAnonymousEmer) {
+        try {
+          payload.anonymousId = getAnonymousDeviceId();
+        } catch {
+          // ignore
+        }
+      }
 
-      const response = await postQrMessage(
-        token,
-        { type: 'EMERGENCY', message, location: { lat, lng }, timestamp, senderName, from: fromValue },
-        authToken,
-      );
+      const response = await postQrMessage(token, payload, authToken);
 
       if (!response.ok) {
         throw new Error(response.data?.message || 'Failed to notify contact.');
       }
 
-      setEmergencyFeedback('Emergency relative notified with location!');
+      setEmergencyFeedback(coords ? 'Emergency relative notified with location!' : 'Emergency notification sent (location unavailable).');
     } catch (err) {
       console.error('Emergency notify failed', err);
-      setEmergencyFeedback('Failed to acquire location or notify relative.');
+      setEmergencyFeedback(err.message || 'Failed to notify relative.');
     } finally {
       setEmergencySending(false);
       setTimeout(() => setEmergencyFeedback(''), 5000);

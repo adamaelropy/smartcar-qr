@@ -222,7 +222,7 @@ app.get("/api/vehicles/:vehicleId/qr", authenticate, async (req, res) => {
 
 app.post('/api/qr/:token/message', async (req, res) => {
     const { token } = req.params;
-    const { type = 'MESSAGE', message = '', from = null } = req.body || {};
+    const { type = 'MESSAGE', message = '', from = null, anonymousId = null } = req.body || {};
 
     try {
         const vehicle = await prisma.vehicle.findUnique({
@@ -235,11 +235,10 @@ app.post('/api/qr/:token/message', async (req, res) => {
             return res.status(404).json({ success: false, message: 'QR code not found.' });
         }
 
-        // Attempt to derive source from Authorization header (if visitor is logged in)
+        // Derive authenticated sender strictly from verified JWT. Do NOT trust client-supplied `from`/`senderName` for identity.
         let sourceValue = null;
         let authenticatedSenderId = null;
         try {
-            console.log('QR POST incoming. headers authorization:', !!req.headers.authorization, 'body from:', !!from);
             const authHeader = req.headers.authorization;
             if (authHeader && authHeader.startsWith('Bearer ')) {
                 const tokenString = authHeader.slice(7);
@@ -247,68 +246,30 @@ app.post('/api/qr/:token/message', async (req, res) => {
                 if (secret) {
                     try {
                         const payload = jwt.verify(tokenString, secret);
-                        if (payload && (payload.username || payload.userId)) {
-                                    authenticatedSenderId = payload.userId || null;
-                                    // Prefer sender's vehicle id when available so threads separate by sender vehicle
-                                    try {
-                                        const senderVehicle = await prisma.vehicle.findUnique({
-                                            where: { user_id: payload.userId },
-                                            select: { vehicle_id: true },
-                                        });
-
-                                        if (senderVehicle && senderVehicle.vehicle_id) {
-                                            sourceValue = `vehicle:${senderVehicle.vehicle_id}`;
-                                        } else {
-                                            sourceValue = payload.username ? `user:${payload.username}` : `userId:${payload.userId}`;
-                                        }
-                                    } catch (e) {
-                                        sourceValue = payload.username ? `user:${payload.username}` : `userId:${payload.userId}`;
-                                    }
-                                }
-                    } catch (e) {
-                        // ignore invalid token - fall back to explicit `from` body
-                    }
-                }
-            }
-
-            if (!sourceValue) {
-                // Prefer explicit `from` field, or fall back to senderName when provided.
-                const candidate = from || (req.body && req.body.senderName) || null;
-
-                if (candidate) {
-                    try {
-                        // Normalize candidate if it's prefixed like "user:username"
-                        let username = null;
-                        if (typeof candidate === 'string' && candidate.startsWith('user:')) {
-                            username = candidate.split(':')[1];
-                        } else if (typeof candidate === 'string' && /^[A-Za-z0-9_\-\.]+$/.test(candidate)) {
-                            // treat plain token-like values as possible username
-                            username = candidate;
-                        }
-
-                        if (username) {
-                            const user = await prisma.user.findUnique({ where: { username } });
-                            if (user) {
-                                const senderVehicle = await prisma.vehicle.findUnique({ where: { user_id: user.user_id }, select: { vehicle_id: true } });
+                        if (payload && payload.userId) {
+                            authenticatedSenderId = payload.userId;
+                            try {
+                                const senderVehicle = await prisma.vehicle.findUnique({
+                                    where: { user_id: payload.userId },
+                                    select: { vehicle_id: true },
+                                });
                                 if (senderVehicle && senderVehicle.vehicle_id) {
                                     sourceValue = `vehicle:${senderVehicle.vehicle_id}`;
                                 } else {
-                                    sourceValue = `user:${username}`;
+                                    sourceValue = payload.username ? `user:${payload.username}` : `userId:${payload.userId}`;
                                 }
-                            } else {
-                                sourceValue = String(candidate);
+                            } catch (e) {
+                                sourceValue = payload.username ? `user:${payload.username}` : `userId:${payload.userId}`;
                             }
-                        } else {
-                            sourceValue = String(candidate);
                         }
                     } catch (e) {
-                        sourceValue = String(candidate);
+                        // invalid token -> treat as anonymous, never trust `from`
                     }
                 }
             }
-            } catch (e) {
-                sourceValue = from ? String(from) : null;
-            }
+        } catch (e) {
+            // ignore
+        }
 
             const normalizedMessage = String(message || (type === 'CALL' ? 'Call initiated' : 'No message')).trim();
             const messageKind = type === 'EMERGENCY' ? 'EMERGENCY' : 'TEXT';
@@ -347,19 +308,31 @@ app.post('/api/qr/:token/message', async (req, res) => {
                 });
             }
 
-            // If still no explicit source (no auth, no `from`), create a pseudo-source
-            // based on a fingerprint of the request so different devices map to different threads.
+            // Anonymous: use stable per-device anonymousId hashed server-side. Do NOT use IP/UA as primary.
             if (!sourceValue) {
                 try {
                     const crypto = require('crypto');
-                    const forwarded = req.headers['x-forwarded-for'] || req.connection && req.connection.remoteAddress || req.socket && req.socket.remoteAddress || '';
-                    const ua = req.headers['user-agent'] || '';
-                    const lang = req.headers['accept-language'] || '';
-                    const fingerprint = `${forwarded}|${ua}|${lang}`;
-                    const hash = crypto.createHash('sha256').update(fingerprint).digest('hex').slice(0, 8);
-                    sourceValue = `anon:${hash}`;
+                    let anonHash = null;
+                    if (typeof anonymousId === 'string') {
+                        const trimmed = anonymousId.trim();
+                        const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(trimmed);
+                        const isGeneric = /^[A-Za-z0-9_-]{8,128}$/.test(trimmed);
+                        if ((isUuid || isGeneric) && trimmed.length >= 8 && trimmed.length <= 128) {
+                            anonHash = crypto.createHash('sha256').update(trimmed).digest('hex').slice(0, 12);
+                        }
+                    }
+                    if (!anonHash) {
+                        // Safe server-generated fallback so message is not lost (handles missing/malformed anonymousId)
+                        let fallbackRaw;
+                        try {
+                            fallbackRaw = crypto.randomUUID();
+                        } catch {
+                            fallbackRaw = crypto.randomBytes(16).toString('hex');
+                        }
+                        anonHash = crypto.createHash('sha256').update(String(fallbackRaw)).digest('hex').slice(0, 12);
+                    }
+                    sourceValue = `anon:${anonHash}`;
                 } catch (e) {
-                    // last resort: use literal string so DB gets non-null source
                     sourceValue = `anon:unknown`;
                 }
             }
