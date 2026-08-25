@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { getServiceTypeLabel } from '../constants/serviceTypes';
 
 const SERVICE_DETAILS = {
@@ -127,7 +127,7 @@ const SERVICE_DETAILS = {
 function ServiceTypeIcon({ type }) {
   if (type === 'CAR_WASH' || type === 'CAR_DETAILING' || type === 'CAR_POLISHING') {
     return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <path d="M4 14s1-7 8-7 8 7 8 7" />
         <path d="M7 14v2M12 14v3M17 14v2" />
       </svg>
@@ -135,7 +135,7 @@ function ServiceTypeIcon({ type }) {
   }
   if (type === 'TYRE_CHANGE' || type === 'WHEEL_ALIGNMENT' || type === 'WHEEL_BALANCING') {
     return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <circle cx="12" cy="12" r="8" />
         <circle cx="12" cy="12" r="3" />
       </svg>
@@ -143,7 +143,7 @@ function ServiceTypeIcon({ type }) {
   }
   if (type === 'OIL_CHANGE') {
     return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <path d="M8 3h8l1 5H7l1-5z" />
         <path d="M7 8h10v10a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3V8z" />
       </svg>
@@ -151,7 +151,7 @@ function ServiceTypeIcon({ type }) {
   }
   if (type === 'BATTERY_REPLACEMENT' || type === 'CAR_ELECTRICAL') {
     return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <rect x="4" y="7" width="16" height="12" rx="2" />
         <path d="M8 7V5M16 7V5M11 12h2M12 11v2" />
       </svg>
@@ -159,7 +159,7 @@ function ServiceTypeIcon({ type }) {
   }
   if (type === 'BRAKE_SERVICE') {
     return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <circle cx="12" cy="12" r="8" />
         <path d="M12 8v4l3 2" />
       </svg>
@@ -167,13 +167,13 @@ function ServiceTypeIcon({ type }) {
   }
   if (type === 'AC_SERVICE') {
     return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <path d="M12 3v18M4.5 7.5l15 9M4.5 16.5l15-9" />
       </svg>
     );
   }
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M3 13l2-5h14l2 5" />
       <path d="M5 16h14" />
       <circle cx="7.5" cy="16.5" r="1.5" />
@@ -182,7 +182,7 @@ function ServiceTypeIcon({ type }) {
   );
 }
 
-function ServiceCard({ service }) {
+const ServiceCard = memo(function ServiceCard({ service }) {
   const [isOpen, setIsOpen] = useState(false);
 
   if (!service) {
@@ -198,12 +198,20 @@ function ServiceCard({ service }) {
 
   return (
     <>
-      <article className="service-card" tabIndex={0} onClick={() => setIsOpen(true)} onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          setIsOpen(true);
-        }
-      }}>
+      <article
+        className="service-card"
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        aria-label={`View details for ${service.service_name}`}
+        onClick={() => setIsOpen(true)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            setIsOpen(true);
+          }
+        }}
+      >
         <div className={`service-card__icon service-card__icon--${detail.tone || 'blue'}`} aria-hidden="true">
           <ServiceTypeIcon type={service.service_type} />
         </div>
@@ -215,11 +223,11 @@ function ServiceCard({ service }) {
       </article>
 
       {isOpen && (
-        <div className="service-modal-backdrop" onClick={() => setIsOpen(false)}>
-          <div className="service-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="service-modal-backdrop" onClick={() => setIsOpen(false)} role="presentation">
+          <div className="service-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={`${service.service_name} details`}>
             <div className="service-modal__header">
               <h2>{service.service_name}</h2>
-              <button type="button" className="service-modal__close" onClick={() => setIsOpen(false)}>
+              <button type="button" className="service-modal__close" onClick={() => setIsOpen(false)} aria-label="Close dialog">
                 ×
               </button>
             </div>
@@ -250,6 +258,6 @@ function ServiceCard({ service }) {
       )}
     </>
   );
-}
+});
 
 export default ServiceCard;

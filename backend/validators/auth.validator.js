@@ -1,5 +1,4 @@
 const { validatePassword } = require("../utils/password");
-const { validateRegistrationDetails } = require("./registration.validator");
 
 const USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 50;
@@ -37,13 +36,6 @@ function validateAccountFields({ username, password, confirmPassword }) {
     return errors;
 }
 
-function validateRegisterInput(body) {
-    return [
-        ...validateAccountFields(body),
-        ...validateRegistrationDetails(body)
-    ];
-}
-
 function validateSignupInput(body) {
     return validateAccountFields(body);
 }
@@ -64,6 +56,5 @@ function validateLoginInput({ username, password }) {
 
 module.exports = {
     validateSignupInput,
-    validateRegisterInput,
     validateLoginInput
 };

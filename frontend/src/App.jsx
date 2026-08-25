@@ -1,19 +1,23 @@
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { lazy, Suspense } from "react";
 import { ProtectedRoute, RegisterRoute } from "./components/ProtectedRoute";
 import DashboardLayout from "./components/DashboardLayout";
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import SignUp from "./pages/SignUp";
-import Messages from "./pages/Messages";
-import Profile from "./pages/Profile";
-import Users from "./pages/Users";
-import Landing from "./pages/landing";
 import { fetchVehicleByQrToken, postQrMessage } from "./services/api";
 import { useAuth } from "./context/AuthContext";
 import { getAnonymousDeviceId } from "./utils/anonymousId";
+import { MessagesPollProvider } from "./context/MessagesPollContext";
+import { buildGoogleMapsUrl } from "./constants/appConfig";
+
+const Home = lazy(() => import("./pages/Home"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const SignUp = lazy(() => import("./pages/SignUp"));
+const Messages = lazy(() => import("./pages/Messages"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Users = lazy(() => import("./pages/Users"));
+const Landing = lazy(() => import("./pages/landing"));
 
 import "./App.css";
 
@@ -34,39 +38,37 @@ function ScannedQR() {
   const [emergencySending, setEmergencySending] = useState(false);
   const [emergencyFeedback, setEmergencyFeedback] = useState('');
   const [messageMode, setMessageMode] = useState('auto');
+  const feedbackTimeoutRef = useRef(null);
+  const emergencyTimeoutRef = useRef(null);
 
   useEffect(() => {
-    let isMounted = true;
-
+    const controller = new AbortController();
     const fetchVehicle = async () => {
       try {
-        const { ok, data } = await fetchVehicleByQrToken(token);
-
-        if (!isMounted) return;
-
+        const { ok, data } = await fetchVehicleByQrToken(token, { signal: controller.signal });
+        if (controller.signal.aborted) return;
         if (!ok) {
           throw new Error(data?.message || "Failed to retrieve vehicle QR information.");
         }
-
         setVehicle(data.vehicle);
       } catch (err) {
-        if (isMounted) {
-          console.error("Scan QR error:", err);
-          setError(err.message);
-        }
+        if (err?.name === 'AbortError') return;
+        console.error("Scan QR error:", err);
+        setError(err.message);
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
-
     fetchVehicle();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => controller.abort();
   }, [token]);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimeoutRef.current) window.clearTimeout(feedbackTimeoutRef.current);
+      if (emergencyTimeoutRef.current) window.clearTimeout(emergencyTimeoutRef.current);
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -137,7 +139,8 @@ function ScannedQR() {
       setMessageFeedback(error.message || 'Failed to send message. Please try again.');
     } finally {
       setSending(false);
-      setTimeout(() => setMessageFeedback(''), 4000);
+      if (feedbackTimeoutRef.current) window.clearTimeout(feedbackTimeoutRef.current);
+      feedbackTimeoutRef.current = window.setTimeout(() => setMessageFeedback(''), 4000);
     }
   };
 
@@ -164,7 +167,7 @@ function ScannedQR() {
       if (coords && typeof coords.latitude === 'number' && typeof coords.longitude === 'number') {
         const lat = coords.latitude;
         const lng = coords.longitude;
-        const mapLink = `https://maps.google.com/?q=${lat},${lng}`;
+        const mapLink = buildGoogleMapsUrl(lat, lng);
         message = `${base} ${mapLink} (reported at ${timestamp})`;
         location = { lat, lng };
       } else {
@@ -194,7 +197,8 @@ function ScannedQR() {
       setEmergencyFeedback(err.message || 'Failed to notify relative.');
     } finally {
       setEmergencySending(false);
-      setTimeout(() => setEmergencyFeedback(''), 5000);
+      if (emergencyTimeoutRef.current) window.clearTimeout(emergencyTimeoutRef.current);
+      emergencyTimeoutRef.current = window.setTimeout(() => setEmergencyFeedback(''), 5000);
     }
   };
 
@@ -295,42 +299,46 @@ function ScannedQR() {
 
 function App() {
   return (
-    <Routes>
-      {/* Public auth pages */}
-      <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<SignUp />} />
+    <Suspense fallback={<main className="page-shell"><p className="state-message">Loading...</p></main>}>
+      <Routes>
+        {/* Public auth pages */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<SignUp />} />
 
-      {/* Registration */}
-      <Route
-        path="/register"
-        element={
-          <RegisterRoute>
-            <Register />
-          </RegisterRoute>
-        }
-      />
+        {/* Registration */}
+        <Route
+          path="/register"
+          element={
+            <RegisterRoute>
+              <Register />
+            </RegisterRoute>
+          }
+        />
 
-      {/* Authenticated dashboard pages */}
-      <Route
-        element={
-          <ProtectedRoute>
-            <DashboardLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route path="/home" element={<Home />} />
-        <Route path="/messages" element={<Messages />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/users" element={<Users />} />
-      </Route>
+        {/* Authenticated dashboard pages */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <MessagesPollProvider>
+                <DashboardLayout />
+              </MessagesPollProvider>
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/home" element={<Home />} />
+          <Route path="/messages" element={<Messages />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/users" element={<Users />} />
+        </Route>
 
-      {/* Scanned QR page */}
-      <Route path="/qr/:token" element={<ScannedQR />} />
+        {/* Scanned QR page */}
+        <Route path="/qr/:token" element={<ScannedQR />} />
 
-      {/* Unknown route */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Unknown route */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 }
 

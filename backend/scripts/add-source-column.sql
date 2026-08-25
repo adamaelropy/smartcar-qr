@@ -1,1 +1,0 @@
-ALTER TABLE "Communication" ADD COLUMN IF NOT EXISTS source varchar(255);

@@ -1,36 +1,7 @@
-const crypto = require("crypto");
 const prisma = require("../db");
-
-// Same validation as QR flow: UUID or generic 8-128 alphanumeric + _-
-function isValidAnonymousId(value) {
-  if (typeof value !== "string") return false;
-  const trimmed = value.trim();
-  if (trimmed.length < 8 || trimmed.length > 128) return false;
-  const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(trimmed);
-  const isGeneric = /^[A-Za-z0-9_-]{8,128}$/.test(trimmed);
-  return (isUuid || isGeneric);
-}
-
-function hashAnonymousId(anonymousId) {
-  const trimmed = String(anonymousId).trim();
-  if (!isValidAnonymousId(trimmed)) return null;
-  return crypto.createHash("sha256").update(trimmed).digest("hex").slice(0, 12);
-}
-
-function classifyMessageText(text) {
-  const normalized = String(text || "").toLowerCase();
-  if (normalized.includes("accident") || normalized.includes("emergency")) return "emergency";
-  if (normalized.includes("block") || normalized.includes("blocked") || normalized.includes("blocking")) return "blocked";
-  return "message";
-}
-
-function createBigIntId() {
-  return BigInt(Date.now()) * 1000n + BigInt(Math.floor(Math.random() * 1000));
-}
-
-function normalizeConversationPair(firstUserId, secondUserId) {
-  return firstUserId < secondUserId ? [firstUserId, secondUserId] : [secondUserId, firstUserId];
-}
+const { createBigIntId, normalizeConversationPair } = require("./ids");
+const { classifyMessageText } = require("./messageClassify");
+const { isValidAnonymousId, hashAnonymousId } = require("./anonymous");
 
 /**
  * Claim anonymous Communication records for a newly created user.
@@ -224,6 +195,4 @@ async function claimAnonymousMessages(userId, anonymousId) {
 
 module.exports = {
   claimAnonymousMessages,
-  hashAnonymousId,
-  isValidAnonymousId,
 };

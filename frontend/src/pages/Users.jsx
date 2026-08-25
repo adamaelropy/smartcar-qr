@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { buildApiUrl } from '../services/api';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -10,46 +10,50 @@ function Users() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [copyFeedback, setCopyFeedback] = useState('');
+  const copyTimeoutRef = useRef(null);
 
   useEffect(() => {
-    let mounted = true;
-
+    const controller = new AbortController();
     const fetchUsers = async () => {
       setLoading(true);
       setError('');
-
       try {
         const res = await fetch(buildApiUrl('/users'), {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
+          signal: controller.signal,
         });
-
+        if (controller.signal.aborted) return;
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           throw new Error(body?.message || `Server returned ${res.status}`);
         }
-
         const data = await res.json();
         const list = Array.isArray(data) ? data : data.users || data.items || [];
-        if (mounted) setUsers(list);
+        setUsers(list);
       } catch (err) {
-        if (mounted) setError(err.message || String(err));
+        if (err?.name === 'AbortError') return;
+        setError(err.message || String(err));
       } finally {
-        if (mounted) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
-
     fetchUsers();
-    return () => {
-      mounted = false;
-    };
+    return () => controller.abort();
   }, [token]);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) window.clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
 
   const handleCopyLink = async (url, username) => {
     if (!url) return;
     try {
       await navigator.clipboard.writeText(url);
       setCopyFeedback(`Copied link for @${username}`);
-      setTimeout(() => setCopyFeedback(''), 2500);
+      if (copyTimeoutRef.current) window.clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = window.setTimeout(() => setCopyFeedback(''), 2500);
     } catch {
       // fallback
     }
@@ -75,15 +79,16 @@ function Users() {
               <p className="state-message">No registered users found.</p>
             ) : (
               <div className="users-grid">
-                {users.map((u, i) => {
-                  const username = u.username || u.user?.username || u.name || `user-${i}`;
+                {users.map((u) => {
+                  const username = u.username || u.user?.username || u.name || `user-${String(u.user_id ?? u.id ?? 'unknown')}`;
                   const email = u.email || u.user?.email || '';
                   const qrToken = u.vehicle?.qr_token || u.qr_token || u.token || null;
                   const qrLink = qrToken ? `${window.location.origin}/qr/${qrToken}` : '';
                   const initial = username.charAt(0).toUpperCase() || 'U';
+                  const stableKey = u.user_id ?? u.id ?? username;
 
                   return (
-                    <article key={u.user_id || i} className="user-card">
+                    <article key={stableKey} className="user-card">
                       <div className="user-card__header">
                         <div className="user-card__avatar">{initial}</div>
                         <div className="user-card__details">

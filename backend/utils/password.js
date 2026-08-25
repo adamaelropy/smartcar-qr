@@ -55,7 +55,6 @@ async function comparePassword(password, passwordHash) {
 }
 
 module.exports = {
-    PASSWORD_RULES,
     validatePassword,
     hashPassword,
     comparePassword

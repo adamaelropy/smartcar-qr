@@ -15,7 +15,7 @@ async function parseResponse(response) {
       ok: false,
       status: response.status,
       data: {
-        message: `Server error (${response.status}). Is the backend running on port 3000?`,
+        message: `Server error (${response.status}). Unable to parse response from ${API_BASE}.`,
       },
     };
   }
@@ -30,16 +30,17 @@ function authHeaders(token) {
   };
 }
 
-export async function fetchServices() {
+export async function fetchServices(options = {}) {
   try {
-    const response = await fetch(buildApiUrl('/services'));
+    const response = await fetch(buildApiUrl('/services'), { signal: options.signal });
     return parseResponse(response);
-  } catch {
+  } catch (err) {
+    if (err?.name === 'AbortError') throw err;
     return {
       ok: false,
       status: 0,
       data: {
-        message: 'Unable to reach the server. Is the backend running on port 3000?',
+        message: `Unable to reach the server at ${API_BASE}. Please check your connection.`,
       },
     };
   }
@@ -79,9 +80,10 @@ export async function submitRegistration(formData, token) {
   return parseResponse(response);
 }
 
-export async function fetchMyProfile(token) {
+export async function fetchMyProfile(token, options = {}) {
   const response = await fetch(buildApiUrl('/auth/me'), {
     headers: authHeaders(token),
+    signal: options.signal,
   });
 
   return parseResponse(response);
@@ -107,16 +109,19 @@ export async function changePassword(token, passwordData) {
   return parseResponse(response);
 }
 
-export async function fetchMyVehicleQr(token) {
+export async function fetchMyVehicleQr(token, options = {}) {
   const response = await fetch(buildApiUrl('/vehicles/me/qr'), {
     headers: authHeaders(token),
+    signal: options.signal,
   });
 
   return parseResponse(response);
 }
 
-export async function fetchVehicleByQrToken(token) {
-  const response = await fetch(buildApiUrl(`/qr/${encodeURIComponent(token)}`));
+export async function fetchVehicleByQrToken(token, options = {}) {
+  const response = await fetch(buildApiUrl(`/qr/${encodeURIComponent(token)}`), {
+    signal: options.signal,
+  });
 
   return parseResponse(response);
 }
@@ -135,20 +140,22 @@ export async function postQrMessage(qrToken, payload, authToken) {
     });
 
     return parseResponse(response);
-  } catch {
+  } catch (err) {
+    if (err?.name === 'AbortError') throw err;
     return {
       ok: false,
       status: 0,
       data: {
-        message: 'Unable to reach the server. Is the backend running on port 3000?',
+        message: `Unable to reach the server at ${API_BASE}. Please check your connection.`,
       },
     };
   }
 }
 
-export async function fetchMessages(token) {
+export async function fetchMessages(token, options = {}) {
   const response = await fetch(buildApiUrl('/messages'), {
     headers: authHeaders(token),
+    signal: options.signal,
   });
 
   return parseResponse(response);

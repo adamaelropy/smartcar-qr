@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 const STORAGE_KEY = 'smartcar_anonymous_id';
 
 function isValidStoredId(value) {
@@ -17,7 +16,7 @@ function generateFallbackId() {
       const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
       return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
     }
-  } catch (_err) {
+  } catch {
     // ignore
   }
   // last resort (should not happen in modern browsers)
@@ -37,32 +36,26 @@ export function getAnonymousDeviceId() {
       } else {
         newId = generateFallbackId();
       }
-    } catch (_err2) {
+    } catch {
       newId = generateFallbackId();
     }
     if (typeof localStorage !== 'undefined') {
       try {
         localStorage.setItem(STORAGE_KEY, newId);
-      } catch (_err3) {
+      } catch {
         // ignore quota errors
       }
     }
     return newId;
-  } catch (_err4) {
+  } catch {
     // if localStorage unavailable, just generate ephemeral id (still groups per tab)
     try {
       if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-    } catch (_err5) {
+    } catch {
       // ignore
     }
     return generateFallbackId();
   }
 }
 
-export function clearAnonymousDeviceId() {
-  try {
-    if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY);
-  } catch (_err6) {
-    // ignore
-  }
-}
+

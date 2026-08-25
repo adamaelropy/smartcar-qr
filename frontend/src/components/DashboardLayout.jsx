@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import BrandMark from './BrandMark';
-import { useAuth } from '../context/AuthContext';
-import { fetchMessages } from '../services/api';
+import { useMessagesPoll } from '../context/MessagesPollContext';
 
 function DashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { token, isAuthenticated } = useAuth();
+  const { threads } = useMessagesPoll();
   const [activeNotification, setActiveNotification] = useState(null);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const lastUnreadRef = useRef(0);
+  const initializedRef = useRef(false);
+
+  const unreadCount = threads.reduce((sum, t) => sum + (t.unread || 0), 0);
 
   useEffect(() => {
     if (!activeNotification) return undefined;
@@ -21,54 +23,25 @@ function DashboardLayout() {
     return () => window.clearTimeout(timeoutId);
   }, [activeNotification]);
 
-  // Poll for unread messages. Only show a toast when unread increases
+  // Show toast when unread increases (centralised polling via MessagesPollProvider)
   useEffect(() => {
-    let mounted = true;
-    let lastUnread = 0;
-
-    async function loadUnread() {
-      if (!isAuthenticated || !token) return;
-      try {
-        const { ok, data } = await fetchMessages(token);
-        if (!mounted || !ok) return;
-
-        const threads = Array.isArray(data?.messages) ? data.messages : [];
-        const totalUnread = threads.reduce((sum, t) => sum + (t.unread || 0), 0);
-        const newestUnreadThread = threads.find((thread) => (thread.unread || 0) > 0);
-
-        // first load: set baseline without notifying
-        if (lastUnread === 0) {
-          lastUnread = totalUnread;
-          setUnreadCount(totalUnread);
-          return;
-        }
-
-        if (totalUnread > lastUnread && location.pathname !== '/messages') {
-          setActiveNotification({
-            title: 'New Message Received',
-            subtitle: newestUnreadThread
-              ? `${newestUnreadThread.senderName}: ${newestUnreadThread.latestIncomingText || newestUnreadThread.preview}`
-              : `You have ${totalUnread - lastUnread} new message(s)`,
-            thread: newestUnreadThread ? `/messages?thread=${encodeURIComponent(newestUnreadThread.id)}` : '/messages',
-          });
-        }
-
-        lastUnread = totalUnread;
-        setUnreadCount(totalUnread);
-      } catch {
-        // ignore network error
-      }
+    if (!initializedRef.current) {
+      lastUnreadRef.current = unreadCount;
+      initializedRef.current = true;
+      return;
     }
-
-    // initial load + interval
-    loadUnread();
-    const id = window.setInterval(loadUnread, 5000);
-
-    return () => {
-      mounted = false;
-      window.clearInterval(id);
-    };
-  }, [isAuthenticated, token, location.pathname]);
+    if (unreadCount > lastUnreadRef.current && location.pathname !== '/messages') {
+      const newestUnreadThread = threads.find((thread) => (thread.unread || 0) > 0);
+      setActiveNotification({
+        title: 'New Message Received',
+        subtitle: newestUnreadThread
+          ? `${newestUnreadThread.senderName}: ${newestUnreadThread.latestIncomingText || newestUnreadThread.preview}`
+          : `You have ${unreadCount - lastUnreadRef.current} new message(s)`,
+        thread: newestUnreadThread ? `/messages?thread=${encodeURIComponent(newestUnreadThread.id)}` : '/messages',
+      });
+    }
+    lastUnreadRef.current = unreadCount;
+  }, [unreadCount, threads, location.pathname]);
 
   const closeNotification = () => setActiveNotification(null);
 

@@ -1,68 +1,30 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { fetchMessages, markThreadRead, sendMessage } from '../services/api';
+import { markThreadRead, sendMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useMessagesPoll } from '../context/MessagesPollContext';
 
 function Messages() {
   const location = useLocation();
   const { token } = useAuth();
+  const { threads, setThreads, loading } = useMessagesPoll();
   const queryThread = new URLSearchParams(location.search).get('thread');
 
-  const [threads, setThreads] = useState([]);
   const [selectedThreadId, setSelectedThreadId] = useState(queryThread || null);
-  const [loading, setLoading] = useState(true);
   const [sendingReply, setSendingReply] = useState(false);
   const [sendError, setSendError] = useState('');
 
+  // sync selected thread with incoming threads — intentionally syncs state from props
   useEffect(() => {
-    let isMounted = true;
-
-    const loadMessages = async (keepLoadingState = false) => {
-      if (!token) {
-        if (isMounted) setLoading(false);
-        return;
-      }
-
-      if (keepLoadingState) {
-        setLoading(true);
-      }
-
-      try {
-        const { ok, data } = await fetchMessages(token);
-        if (!isMounted) return;
-
-        if (ok && Array.isArray(data?.messages)) {
-          const list = data.messages;
-          setThreads(list);
-          setSelectedThreadId((currentId) => {
-            if (queryThread && list.some((thread) => thread.id === queryThread)) return queryThread;
-            if (currentId && list.some((thread) => thread.id === currentId)) return currentId;
-            return list[0]?.id || null;
-          });
-        } else {
-          setThreads([]);
-          setSelectedThreadId(queryThread || null);
-        }
-      } catch {
-        if (isMounted) {
-          setThreads([]);
-          setSelectedThreadId(queryThread || null);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadMessages(true);
-    const intervalId = window.setInterval(() => loadMessages(false), 5000);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(intervalId);
-    };
-  }, [token, queryThread]);
+    if (queryThread && threads.some((thread) => thread.id === queryThread)) {
+      setSelectedThreadId(queryThread);
+      return;
+    }
+    if (selectedThreadId && threads.some((thread) => thread.id === selectedThreadId)) return;
+    if (threads[0]?.id) setSelectedThreadId(threads[0].id);
+    if (threads.length === 0) setSelectedThreadId(queryThread || null);
+  }, [threads, queryThread, selectedThreadId, setSelectedThreadId]);
 
   const handleSelectThread = (threadId) => {
     setSelectedThreadId(threadId);
@@ -80,19 +42,22 @@ function Messages() {
 
   const messagesListRef = useRef(null);
   const replyPanelRef = useRef(null);
+  const scrollTimeoutRef = useRef(null);
 
   useEffect(() => {
     // scroll conversation to bottom when selected thread or its messages change
     const el = messagesListRef.current;
     const replyEl = replyPanelRef.current;
     if (el) {
-      // allow render to complete
-      setTimeout(() => {
+      if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = window.setTimeout(() => {
         const replyHeight = replyEl ? replyEl.offsetHeight : 0;
-        // leave extra space equal to reply panel so last message isn't hidden
         el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight - replyHeight + 8);
       }, 50);
     }
+    return () => {
+      if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
+    };
   }, [selectedThreadId, selectedThread?.messages?.length]);
 
   useEffect(() => {
@@ -120,7 +85,7 @@ function Messages() {
     return () => {
       cancelled = true;
     };
-  }, [selectedThreadId, token]);
+  }, [selectedThreadId, token, setThreads]);
 
   const isAnonymousThread = Boolean(
     selectedThread?.isAnonymous ||
@@ -187,13 +152,16 @@ function Messages() {
           ) : threads.length === 0 ? (
             <p className="state-message">No messages received yet.</p>
           ) : (
-            threads.map((thread) => (
-              <button
-                key={thread.id}
-                type="button"
-                className={`message-thread ${selectedThread?.id === thread.id ? 'is-selected' : ''}`}
-                onClick={() => handleSelectThread(thread.id)}
-              >
+            <div role="tablist" aria-label="Message threads">
+              {threads.map((thread) => (
+                <button
+                  key={thread.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={selectedThread?.id === thread.id}
+                  className={`message-thread ${selectedThread?.id === thread.id ? 'is-selected' : ''}`}
+                  onClick={() => handleSelectThread(thread.id)}
+                >
                 <div className="message-thread__top">
                   <strong>{thread.senderName}</strong>
                   <span>{thread.time}</span>
@@ -206,7 +174,8 @@ function Messages() {
 
                 <p>{thread.preview}</p>
               </button>
-            ))
+              ))}
+            </div>
           )}
         </aside>
 

@@ -24,7 +24,7 @@ const HIGHLIGHTS = [
 function HighlightIcon({ name }) {
   if (name === 'lock') {
     return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <rect x="5" y="11" width="14" height="10" rx="2" />
         <path d="M8 11V8a4 4 0 0 1 8 0v3" />
       </svg>
@@ -32,7 +32,7 @@ function HighlightIcon({ name }) {
   }
   if (name === 'bell') {
     return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
         <path d="M13.7 21a2 2 0 0 1-3.4 0" />
       </svg>
@@ -40,13 +40,13 @@ function HighlightIcon({ name }) {
   }
   if (name === 'shield') {
     return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <path d="M12 3l8 4v6c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7l8-4z" />
       </svg>
     );
   }
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" />
     </svg>
   );
@@ -64,16 +64,13 @@ function Home() {
   const [selectedAvailability, setSelectedAvailability] = useState('all');
 
   useEffect(() => {
-    let isMounted = true;
-
+    const controller = new AbortController();
     const loadServices = async () => {
       try {
         setLoading(true);
         setError('');
-        const { ok, status, data } = await fetchServices();
-
-        if (!isMounted) return;
-
+        const { ok, status, data } = await fetchServices({ signal: controller.signal });
+        if (controller.signal.aborted) return;
         if (!ok) {
           const message =
             data?.message ||
@@ -85,28 +82,20 @@ function Home() {
           setError(message);
           return;
         }
-
         if (Array.isArray(data?.services)) {
           setAllServices(data.services);
         } else {
           setError('Invalid response format received from server.');
         }
       } catch (err) {
-        if (isMounted) {
-          setError(err?.message || 'Unable to load services.');
-        }
+        if (err?.name === 'AbortError') return;
+        setError(err?.message || 'Unable to load services.');
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
-
     loadServices();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => controller.abort();
   }, []);
 
   const availableLocations = useMemo(
@@ -172,6 +161,9 @@ function Home() {
           <img
             src="/images/hero-home.png"
             alt="Silver sedan with a SmartCar QR sticker on the windshield"
+            loading="lazy"
+            width="640"
+            height="320"
           />
         </div>
       </section>
@@ -179,7 +171,7 @@ function Home() {
       <form className="home-search-card" onSubmit={handleSearch}>
         <div className="service-search">
           <span className="service-search__icon" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="7" />
               <path d="M20 20l-3-3" />
             </svg>
