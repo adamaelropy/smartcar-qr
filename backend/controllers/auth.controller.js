@@ -15,10 +15,11 @@ const { buildSignupPlaceholders } = require("../utils/userDefaults");
 const { signToken } = require("../utils/jwt");
 const { isRegistrationComplete } = require("../utils/registrationStatus");
 const { generateQrToken } = require("../utils/qrToken");
+const { claimAnonymousMessages } = require("../utils/claimAnonymousMessages");
 
 async function signup(req, res) {
     try {
-        const { username, password, confirmPassword } = req.body;
+        const { username, password, confirmPassword, anonymousId } = req.body;
 
         const validationErrors = validateSignupInput({
             username,
@@ -78,6 +79,20 @@ async function signup(req, res) {
             user_id: createdUser.user_id,
             username: createdUser.username
         };
+
+        // Attempt to claim anonymous communications if anonymousId provided
+        // Do not fail signup if claiming fails — user must still be able to log in; claim is retryable/idempotent
+        if (typeof anonymousId === "string" && anonymousId.trim().length > 0) {
+            try {
+                const claimResult = await claimAnonymousMessages(createdUser.user_id, anonymousId);
+                if (claimResult && claimResult.claimedCount > 0) {
+                    console.log(`Claimed ${claimResult.claimedCount} anonymous communications for user ${createdUser.user_id} (conversations: ${claimResult.conversationIds.join(",")})`);
+                }
+            } catch (claimError) {
+                console.error("Claim anonymous messages error (non-fatal):", claimError.message);
+                // do not throw — signup remains successful
+            }
+        }
 
         return res.status(201).json({
             success: true,

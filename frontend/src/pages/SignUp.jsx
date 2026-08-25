@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { signup as signupRequest } from '../services/api';
 import BrandMark from '../components/BrandMark';
+import { getAnonymousDeviceId } from '../utils/anonymousId';
 import '../styles/auth.css';
 
 function SignUp() {
@@ -23,11 +24,23 @@ function SignUp() {
     setError('');
     setLoading(true);
 
+    // Retrieve existing anonymous device id only if it already exists; do not create new one unnecessarily if none exists
+    let anonymousId = null;
+    try {
+      const existing = typeof localStorage !== 'undefined' ? localStorage.getItem('smartcar_anonymous_id') : null;
+      if (existing && existing.trim().length >= 8) {
+        anonymousId = getAnonymousDeviceId();
+      }
+    } catch {
+      // ignore - anonymousId remains null
+    }
+
     try {
       const { ok, data } = await signupRequest(
         username,
         password,
         confirmPassword,
+        anonymousId,
       );
 
       if (!ok) {

@@ -16,13 +16,14 @@ model User {
   password_hash String    @db.VarChar(255)
   created_at    DateTime  @default(now())
 
-  vehicle           Vehicle?
-  emergencyContacts EmergencyContact[]
-  passwordResets    PasswordReset[]
-  conversationsA    Conversation[]        @relation("ConversationParticipantA")
-  conversationsB    Conversation[]        @relation("ConversationParticipantB")
-  sentMessages      ConversationMessage[] @relation("ConversationMessageSender")
-  receivedMessages  ConversationMessage[] @relation("ConversationMessageRecipient")
+  vehicle               Vehicle?
+  emergencyContacts     EmergencyContact[]
+  passwordResets        PasswordReset[]
+  conversationsA        Conversation[]        @relation("ConversationParticipantA")
+  conversationsB        Conversation[]        @relation("ConversationParticipantB")
+  sentMessages          ConversationMessage[] @relation("ConversationMessageSender")
+  receivedMessages      ConversationMessage[] @relation("ConversationMessageRecipient")
+  claimedCommunications Communication[]       @relation("CommunicationClaimedByUser")
 }
 
 model Vehicle {
@@ -56,16 +57,26 @@ model Service {
 }
 
 model Communication {
-  communication_id BigInt           @id
-  vehicle_id       Int
-  type             CommunicationType
-  direction        CommunicationDirection
-  source           String?          @db.VarChar(255)
-  message          String?
-  read             Boolean          @default(false)
-  created_at       DateTime         @default(now())
+  communication_id   BigInt                 @id
+  vehicle_id         Int
+  type               CommunicationType
+  direction          CommunicationDirection
+  source             String?                @db.VarChar(255)
+  message            String?
+  read               Boolean                @default(false)
+  created_at         DateTime               @default(now())
+  claimed_by_user_id Int?
+  conversation_id    BigInt?
+  claimed_at         DateTime?
 
-  vehicle Vehicle @relation(fields: [vehicle_id], references: [vehicle_id], onDelete: Cascade, onUpdate: Cascade)
+  vehicle      Vehicle       @relation(fields: [vehicle_id], references: [vehicle_id], onDelete: Cascade, onUpdate: Cascade)
+  claimedByUser User?        @relation("CommunicationClaimedByUser", fields: [claimed_by_user_id], references: [user_id], onDelete: SetNull, onUpdate: Cascade)
+  conversation  Conversation? @relation("CommunicationClaimedConversation", fields: [conversation_id], references: [conversation_id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([source])
+  @@index([claimed_by_user_id])
+  @@index([conversation_id])
+  @@index([vehicle_id, source])
 }
 
 model Conversation {
@@ -78,6 +89,7 @@ model Conversation {
   participantA      User                  @relation("ConversationParticipantA", fields: [participant_a_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
   participantB      User                  @relation("ConversationParticipantB", fields: [participant_b_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
   messages          ConversationMessage[]
+  claimedCommunications Communication[]    @relation("CommunicationClaimedConversation")
 
   @@unique([participant_a_id, participant_b_id])
   @@index([participant_a_id])

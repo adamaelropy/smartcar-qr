@@ -150,7 +150,11 @@ async function getMessages(req, res) {
         let anonThreads = [];
         if (ownedVehicleIds.length > 0) {
             const anonCommunications = await prisma.communication.findMany({
-                where: { vehicle_id: { in: ownedVehicleIds } },
+                where: {
+                    vehicle_id: { in: ownedVehicleIds },
+                    claimed_by_user_id: null,
+                    conversation_id: null,
+                },
                 orderBy: { created_at: "asc" },
                 select: {
                     communication_id: true,
@@ -261,7 +265,7 @@ async function markThreadRead(req, res) {
                         return res.status(404).json({ success: false, message: "Conversation not found." });
                     }
                     const resultLegacy = await prisma.communication.updateMany({
-                        where: { vehicle_id: vehicleIdLegacy, read: false },
+                        where: { vehicle_id: vehicleIdLegacy, read: false, claimed_by_user_id: null, conversation_id: null },
                         data: { read: true },
                     });
                     return res.json({ success: true, threadId, updated: resultLegacy.count });
@@ -281,7 +285,7 @@ async function markThreadRead(req, res) {
                 return res.status(404).json({ success: false, message: "Conversation not found." });
             }
             const result = await prisma.communication.updateMany({
-                where: { vehicle_id: vehicleId, source: `anon:${anonHash}`, read: false },
+                where: { vehicle_id: vehicleId, source: `anon:${anonHash}`, read: false, claimed_by_user_id: null, conversation_id: null },
                 data: { read: true },
             });
             return res.json({ success: true, threadId, updated: result.count });

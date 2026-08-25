@@ -55,11 +55,15 @@ export async function login(username, password) {
   return parseResponse(response);
 }
 
-export async function signup(username, password, confirmPassword) {
+export async function signup(username, password, confirmPassword, anonymousId) {
+  const payload = { username, password, confirmPassword };
+  if (typeof anonymousId === 'string' && anonymousId.trim().length > 0) {
+    payload.anonymousId = anonymousId.trim();
+  }
   const response = await fetch(buildApiUrl('/auth/signup'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password, confirmPassword }),
+    body: JSON.stringify(payload),
   });
 
   return parseResponse(response);
